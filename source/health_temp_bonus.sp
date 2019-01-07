@@ -27,13 +27,15 @@
 
 new Handle:hCvarValveSurvivalBonus;
 new Handle:hCvarValveTieBreaker;
+new bool:isFirstRound;
+new firstRoundBonus;
 
 public Plugin myinfo =
 {
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "0.2",
+	version = "0.3",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -44,18 +46,20 @@ public OnPluginStart()
     hCvarValveTieBreaker = FindConVar("vs_tiebreak_bonus");
 }
 
+public void OnMapStart() 
+{
+    isFirstRound = true;    
+}
+
 public Action Cmd_ShowBonus(client, args) 
 {
     new health[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};
     CalculateHealth(health);
     new finalBonus = CalculateFinalBonus(health);
 
-    PrintToChat(client, "Health = %d", health[PERM_HEALTH_INDEX]);
-    PrintToChat(client, "Temp Health = %d", health[TEMP_HEALTH_INDEX]);
-    PrintToChat(client, "Stock Temp Health = %d", health[STOCK_TEMP_HEALTH_INDEX]);
-    PrintToChat(client, "Pills Health = %d", health[PILLS_HEALTH_INDEX]);
-    PrintToChat(client, "Revives = %d", health[REVIVE_COUNT_INDEX]);
-    PrintToChat(client, "Final Bonus = %d", finalBonus);
+    PrintToChat(client, "Bonus: %d [ Perm = %d | Temp = %d ]", finalBonus, 
+                                                               health[PERM_HEALTH_INDEX], 
+                                                               CalculateTotalTempHealth(health));
 }
 
 public void CalculateHealth(int health[HEALTH_TABLE_SIZE]) 
@@ -84,17 +88,20 @@ public void CalculateHealth(int health[HEALTH_TABLE_SIZE])
 
 public int CalculateFinalBonus(health[HEALTH_TABLE_SIZE]) 
 {
-    new tempHealthTotal = health[TEMP_HEALTH_INDEX] 
-                    + health[STOCK_TEMP_HEALTH_INDEX] 
-                    + health[PILLS_HEALTH_INDEX];
-
     new Float:healthRatios = (health[PERM_HEALTH_INDEX] * L4D_GetVersusMaxCompletionScore() * PERM_RATIO)
-                                + (tempHealthTotal * L4D_GetVersusMaxCompletionScore() * (1.0 - PERM_RATIO)); 
+                                + (CalculateTotalTempHealth(health) * L4D_GetVersusMaxCompletionScore() * (1.0 - PERM_RATIO)); 
     new Float:healthAlive = (healthRatios / NUMBER_SURVIVORS) * health[ALIVE_COUNT_INDEX];
     new Float:healthRevives = (healthAlive / MAX_REVIVES) * (MAX_REVIVES - health[REVIVE_COUNT_INDEX] + 1.0);
     new Float:healthFinal = healthRevives / HEALTH_DIVISOR;
 
     return RoundFloat(healthFinal);
+}
+
+public int CalculateTotalTempHealth(health[HEALTH_TABLE_SIZE])
+{
+    return health[TEMP_HEALTH_INDEX]                             
+                    + health[STOCK_TEMP_HEALTH_INDEX]                           
+                    + health[PILLS_HEALTH_INDEX];
 }
 
 /** 
@@ -137,12 +144,14 @@ stock L4D_GetPlayerReviveCount(client)
 stock bool HasPills(client)
 {
 	new item = GetPlayerWeaponSlot(client, 4);
+
 	if (IsValidEdict(item))
 	{
 		decl String:buffer[64];
 		GetEdictClassname(item, buffer, sizeof(buffer));
 		return StrEqual(buffer, "weapon_pain_pills");
 	}
+
 	return false;
 }
 
@@ -150,8 +159,27 @@ public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) {
     new health[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};
     CalculateHealth(health);
     new finalBonus = CalculateFinalBonus(health);
+
     SetConVarInt(hCvarValveSurvivalBonus, finalBonus / health[ALIVE_COUNT_INDEX]); 
     SetConVarInt(hCvarValveTieBreaker, 0);
-    PrintToChatAll("Bonus = %d", finalBonus);
+
+    if (isFirstRound) {
+        firstRoundBonus = finalBonus;
+        PrintRoundBonusAll(true, health, finalBonus);
+    } else {
+        PrintRoundBonusAll(true, health, firstRoundBonus);    
+        PrintRoundBonusAll(false, health, finalBonus);    
+    }
+
+    isFirstRound = false;
+
     return Plugin_Continue;
+}
+
+public void PrintRoundBonusAll(bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
+{
+    PrintToChatAll("#%d Bonus: %d [ Perm = %d | Temp = %d ]", firstRound ? 1 : 2, 
+                                                              finalBonus, 
+                                                              health[PERM_HEALTH_INDEX], 
+                                                              CalculateTotalTempHealth(health));
 }
