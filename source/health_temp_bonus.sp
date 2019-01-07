@@ -36,7 +36,7 @@ public Plugin myinfo =
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "0.3",
+	version = "0.4",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -58,8 +58,12 @@ public Action Cmd_ShowBonus(client, args)
     CalculateHealth(health);
     new finalBonus = CalculateFinalBonus(health);
     
-    PrintToChat(client, "\x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01]", 
-                finalBonus, health[PERM_HEALTH_INDEX], CalculateTotalTempHealth(health));
+    if (isFirstRound) {
+        PrintRoundBonusAll(true, health, finalBonus);
+    } else {
+        PrintRoundBonusAll(true, firstRoundHealth, firstRoundBonus);    
+        PrintRoundBonusAll(false, health, finalBonus);    
+    }
 }
 
 public void CalculateHealth(int health[HEALTH_TABLE_SIZE]) 
@@ -179,8 +183,8 @@ public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) {
 
 public void PrintRoundBonusAll(bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
 {
-    PrintToChatAll("\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01]", 
-        firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], CalculateTotalTempHealth(health)); 
+    PrintToChatAll("\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01 | Pills = \x03%d \x01]", 
+        firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], health[PILLS_HEALTH_INDEX]); 
 }
 
 public void copyTableValues(int health[HEALTH_TABLE_SIZE], int healthCopy[HEALTH_TABLE_SIZE])
