@@ -30,10 +30,10 @@ new Handle:hCvarValveTieBreaker;
 
 public Plugin myinfo =
 {
-	name = "L4D2 Competitive Health Bonus Scoring System",
+	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
-	description = "Bonus Scoring System for L4D2 Competitive",
-	version = "0.1",
+	description = "Scoring system for l4d2 competitive",
+	version = "0.2",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -150,7 +150,7 @@ public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) {
     new health[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};
     CalculateHealth(health);
     new finalBonus = CalculateFinalBonus(health);
-    SetConVarInt(hCvarValveSurvivalBonus, finalBonus); 
+    SetConVarInt(hCvarValveSurvivalBonus, finalBonus / health[ALIVE_COUNT_INDEX]); 
     SetConVarInt(hCvarValveTieBreaker, 0);
     PrintToChatAll("Bonus = %d", finalBonus);
     return Plugin_Continue;
