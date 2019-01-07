@@ -29,6 +29,7 @@ new Handle:hCvarValveSurvivalBonus;
 new Handle:hCvarValveTieBreaker;
 new bool:isFirstRound;
 new firstRoundBonus;
+new firstRoundHealth[HEALTH_TABLE_SIZE];
 
 public Plugin myinfo =
 {
@@ -41,7 +42,7 @@ public Plugin myinfo =
 
 public OnPluginStart() 
 {
-    RegConsoleCmd("sm_hb", Cmd_ShowBonus, "Show current bonus");
+    RegConsoleCmd("sm_health", Cmd_ShowBonus, "Show current bonus");
     hCvarValveSurvivalBonus = FindConVar("vs_survival_bonus");
     hCvarValveTieBreaker = FindConVar("vs_tiebreak_bonus");
 }
@@ -56,10 +57,9 @@ public Action Cmd_ShowBonus(client, args)
     new health[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};
     CalculateHealth(health);
     new finalBonus = CalculateFinalBonus(health);
-
-    PrintToChat(client, "Bonus: %d [ Perm = %d | Temp = %d ]", finalBonus, 
-                                                               health[PERM_HEALTH_INDEX], 
-                                                               CalculateTotalTempHealth(health));
+    
+    PrintToChat(client, "\x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01]", 
+                finalBonus, health[PERM_HEALTH_INDEX], CalculateTotalTempHealth(health));
 }
 
 public void CalculateHealth(int health[HEALTH_TABLE_SIZE]) 
@@ -165,9 +165,10 @@ public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) {
 
     if (isFirstRound) {
         firstRoundBonus = finalBonus;
+        copyTableValues(health, firstRoundHealth);
         PrintRoundBonusAll(true, health, finalBonus);
     } else {
-        PrintRoundBonusAll(true, health, firstRoundBonus);    
+        PrintRoundBonusAll(true, firstRoundHealth, firstRoundBonus);    
         PrintRoundBonusAll(false, health, finalBonus);    
     }
 
@@ -178,8 +179,13 @@ public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) {
 
 public void PrintRoundBonusAll(bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
 {
-    PrintToChatAll("#%d Bonus: %d [ Perm = %d | Temp = %d ]", firstRound ? 1 : 2, 
-                                                              finalBonus, 
-                                                              health[PERM_HEALTH_INDEX], 
-                                                              CalculateTotalTempHealth(health));
+    PrintToChatAll("\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01]", 
+        firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], CalculateTotalTempHealth(health)); 
+}
+
+public void copyTableValues(int health[HEALTH_TABLE_SIZE], int healthCopy[HEALTH_TABLE_SIZE])
+{
+    for (new i = 0; i < HEALTH_TABLE_SIZE; ++i) {
+        healthCopy[i] = health[i];
+    }
 }
