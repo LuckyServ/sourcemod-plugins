@@ -1,19 +1,33 @@
 /**
  * L4D2 Competitive Health Bonus Scoring System.
  * 
+ * -------
  * ConVars
- * ~~~~~
+ * -------
+ * 
  * sm_perm_ratio [0.0, 1.0]
  *  
  * Defines how much permanent health should be worth 
  * compared to temporary health.
+ *
  * ~~~~~
- * sm_health_bonus_divisor [1.0,INT_MAX]
+ *
+ * sm_health_bonus_divisor [1.0, INT_MAX]
  * 
  * Defines the overall bonus divisor. Use this to make 
  * the bonus worth more (or less) compared to map distance.
+ *
  * ~~~~~
+ *
+ * sm_pain_pills_add_pool [0, INT_MAX]
+ *
+ * Defines how much temporary health each set of pain pills add to the
+ * temporary health pool.
  * 
+ * --------------
+ * Implementation
+ * --------------
+ *
  * There's a permanent health pool and a temporary health pool.
  *
  * The permanent health pool represents the total amount of permanent health
@@ -35,6 +49,10 @@
  * bleed.
  *
  * Survivor deaths have the same kind of penalty on the bonus as incaps.
+ *
+ * -------
+ * Credits
+ * -------
  * 
  * Author: Luckylock
  * 
@@ -56,7 +74,7 @@
 #define SURVIVOR_MAX_INCAPACITATED_COUNT GetConVarInt(FindConVar("survivor_max_incapacitated_count"))
 #define MAX_REVIVES (SURVIVOR_LIMIT * SURVIVOR_MAX_INCAPACITATED_COUNT)
 #define STOCK_TEMP_HEALTH (SURVIVOR_MAX_INCAPACITATED_COUNT * SURVIVOR_LIMIT * SURVIVOR_REVIVE_HEALTH)
-#define PAIN_PILLS_HEALTH 50
+#define PAIN_PILLS_HEALTH GetConVarInt(FindConVar("sm_pain_pills_add_pool"))
 
 /* Health divisor to keep bonus at reasonable numbers */
 #define HEALTH_DIVISOR GetConVarInt(FindConVar("sm_health_bonus_divisor")) 
@@ -82,7 +100,7 @@ public Plugin myinfo =
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "2.2",
+	version = "2.3",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -92,6 +110,8 @@ public OnPluginStart()
         FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_health_bonus_divisor", "200.0", "Health divisor to keep bonus at reasonable numbers",
         FCVAR_NONE, true, 1.0);
+    CreateConVar("sm_pain_pills_add_pool", "50", "How much temporary health pain pills add to the pool",
+        FCVAR_NONE, true, 0.0);
     RegConsoleCmd("sm_health", Cmd_ShowBonus, "Show current bonus");
     hCvarValveSurvivalBonus = FindConVar("vs_survival_bonus");
     hCvarValveTieBreaker = FindConVar("vs_tiebreak_bonus");
