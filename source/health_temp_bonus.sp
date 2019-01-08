@@ -1,6 +1,41 @@
 /**
  * L4D2 Competitive Health Bonus Scoring System.
  * 
+ * ConVars
+ * ~~~~~
+ * sm_perm_ratio [0.0, 1.0]
+ *  
+ * Defines how much permanent health should be worth 
+ * compared to temporary health.
+ * ~~~~~
+ * sm_health_bonus_divisor [1.0,INT_MAX]
+ * 
+ * Defines the overall bonus divisor. Use this to make 
+ * the bonus worth more (or less) compared to map distance.
+ * ~~~~~
+ * 
+ * There's a permanent health pool and a temporary health pool.
+ *
+ * The permanent health pool represents the total amount of permanent health
+ * that survivors have.
+ *
+ * The temporary health pool represents the total amount of temporary health
+ * that survivors have + pain pills health + temporary health that survivors
+ * get for free after a revive.
+ *
+ * Both pools are subjected to these factors:
+ *
+ * - Maximum map distance
+ * - Permanent health ratio (defined by the cvar sm_perm_ratio) 
+ * - Health divisor (defined by the cvar sm_health_bonus_divisor)
+ * - Number of times the survivors have been incapacitated / killed.
+ *
+ * Pain pills in your inventory are worth the same in terms of temporary health
+ * pool as 50 temporary health. Eating them will not reduce your bonus until you
+ * bleed.
+ *
+ * Survivor deaths have the same kind of penalty on the bonus as incaps.
+ * 
  * Author: Luckylock
  * 
  * Testers and feedback: Adam, Hib
