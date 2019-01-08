@@ -5,7 +5,7 @@ public Plugin myinfo =
 	name = "L4D2 Server Restarter",
 	author = "Luckylock, Sir",
 	description = "Restarts server after every client has disconnected by crashing it. Uses the built-in restart of srcds_run",
-	version = "1.3",
+	version = "1.4",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -14,22 +14,16 @@ public void OnPluginStart()
     ServerCommand("sm_cvar sv_hibernate_when_empty 0"); 
 }
 
-public void OnClientDisconnect(int client)
+public void OnPluginEnd()
 {
-    if (!IsFakeClient(client)) {
-
-        // Timer to give enough time for a map transition (clients get disconnected)
-        CreateTimer(10.0, CrashIfNoHumans);
-    }
+    CrashIfNoHumans();
 }
 
-public Action CrashIfNoHumans(Handle timer) 
+public void CrashIfNoHumans() 
 {
     if (!HumanFound()) {
         CrashServer();
     }
-
-    return Plugin_Continue;
 }
 
 public bool HumanFound() 
