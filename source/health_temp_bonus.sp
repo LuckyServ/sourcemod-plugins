@@ -1,6 +1,16 @@
+/**
+ * L4D2 Competitive Health Bonus Scoring System.
+ * 
+ * Author: Luckylock
+ * 
+ * Testers and feedback: Adam, Hib
+ */
+
 #include <sourcemod>
 #include <left4downtown>
 #include <sdktools>
+
+#define DEBUG 0
 
 /* Ratio */
 #define PERM_RATIO GetConVarFloat(FindConVar("sm_perm_ratio"))
@@ -36,7 +46,7 @@ public Plugin myinfo =
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "2.1",
+	version = "2.2",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -87,6 +97,12 @@ public void CalculateHealth(int health[HEALTH_TABLE_SIZE])
 
     health[STOCK_TEMP_HEALTH_INDEX] = STOCK_TEMP_HEALTH - (revives * SURVIVOR_REVIVE_HEALTH);
     health[REVIVE_COUNT_INDEX] = revives;
+
+#if DEBUG
+    for (new i = 0; i < HEALTH_TABLE_SIZE; ++i) {
+        PrintToChatAll("health[%d] = %d", i, health[i]);
+    }
+#endif
 }
 
 public int CalculateFinalBonus(health[HEALTH_TABLE_SIZE]) 
@@ -95,16 +111,16 @@ public int CalculateFinalBonus(health[HEALTH_TABLE_SIZE])
         RoundFloat(health[PERM_HEALTH_INDEX] 
         * L4D_GetVersusMaxCompletionScore() 
         * PERM_RATIO / HEALTH_DIVISOR
-        / SURVIVOR_LIMIT * health[ALIVE_COUNT_INDEX]
-        / MAX_REVIVES * (MAX_REVIVES - health[REVIVE_COUNT_INDEX]));
+        / (MAX_REVIVES + SURVIVOR_LIMIT) 
+        * (MAX_REVIVES + SURVIVOR_LIMIT - health[REVIVE_COUNT_INDEX] - (SURVIVOR_LIMIT - health[ALIVE_COUNT_INDEX])));
 
     for (new i = TEMP_HEALTH_INDEX; i <= PILLS_HEALTH_INDEX; ++i) {
         health[i] = 
             RoundFloat(health[i]
             * L4D_GetVersusMaxCompletionScore() 
             * (1.0 - PERM_RATIO) / HEALTH_DIVISOR
-            / SURVIVOR_LIMIT * health[ALIVE_COUNT_INDEX]
-            / MAX_REVIVES * (MAX_REVIVES - health[REVIVE_COUNT_INDEX]));
+            / (MAX_REVIVES + SURVIVOR_LIMIT) 
+            * (MAX_REVIVES + SURVIVOR_LIMIT - health[REVIVE_COUNT_INDEX] - (SURVIVOR_LIMIT - health[ALIVE_COUNT_INDEX])));
     }
 
     return health[PERM_HEALTH_INDEX] 
