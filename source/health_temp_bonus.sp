@@ -74,7 +74,8 @@ new Handle:hCvarValveSurvivalBonus;
 new Handle:hCvarValveTieBreaker;
 new firstRoundBonus;
 new firstRoundHealth[HEALTH_TABLE_SIZE];
-new bool:isFirstRound;
+new currentRoundBonus;
+new currentRoundHealth[HEALTH_TABLE_SIZE];
 
 public Plugin myinfo =
 {
@@ -96,6 +97,9 @@ public OnPluginStart()
     hCvarValveTieBreaker = FindConVar("vs_tiebreak_bonus");
 }
 
+/**
+ * Shows health bonus to client.
+ */
 public Action Cmd_ShowBonus(client, args) 
 {
     new health[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};
@@ -110,6 +114,9 @@ public Action Cmd_ShowBonus(client, args)
     }
 }
 
+/**
+ * Calculates health values (permanent and temporary)
+ */
 public void CalculateHealth(int health[HEALTH_TABLE_SIZE]) 
 {
     new revives = 0;
@@ -140,22 +147,15 @@ public void CalculateHealth(int health[HEALTH_TABLE_SIZE])
 #endif
 }
 
+/**
+ * Calculates the final bonus.
+ */
 public int CalculateFinalBonus(health[HEALTH_TABLE_SIZE]) 
 {
-    health[PERM_HEALTH_INDEX] = 
-        RoundFloat(health[PERM_HEALTH_INDEX] 
-        * L4D_GetVersusMaxCompletionScore() 
-        * PERM_RATIO / HEALTH_DIVISOR
-        / (MAX_REVIVES + SURVIVOR_LIMIT) 
-        * (MAX_REVIVES + SURVIVOR_LIMIT - health[REVIVE_COUNT_INDEX] - (SURVIVOR_LIMIT - health[ALIVE_COUNT_INDEX])));
+    ApplyBonusFactors(health, PERM_RATIO, PERM_HEALTH_INDEX);
 
     for (new i = TEMP_HEALTH_INDEX; i <= PILLS_HEALTH_INDEX; ++i) {
-        health[i] = 
-            RoundFloat(health[i]
-            * L4D_GetVersusMaxCompletionScore() 
-            * (1.0 - PERM_RATIO) / HEALTH_DIVISOR
-            / (MAX_REVIVES + SURVIVOR_LIMIT) 
-            * (MAX_REVIVES + SURVIVOR_LIMIT - health[REVIVE_COUNT_INDEX] - (SURVIVOR_LIMIT - health[ALIVE_COUNT_INDEX])));
+        ApplyBonusFactors(health, 1.0 - PERM_RATIO, i);
     }
 
     return health[PERM_HEALTH_INDEX] 
@@ -164,11 +164,17 @@ public int CalculateFinalBonus(health[HEALTH_TABLE_SIZE])
             + health[PILLS_HEALTH_INDEX]; 
 }
 
-public int CalculateTotalTempHealth(health[HEALTH_TABLE_SIZE])
+/**
+ * Applies factors to health values.
+ */
+public void ApplyBonusFactors(health[HEALTH_TABLE_SIZE], float ratio, index)
 {
-    return health[TEMP_HEALTH_INDEX]                             
-            + health[STOCK_TEMP_HEALTH_INDEX]                           
-            + health[PILLS_HEALTH_INDEX];
+        health[index] = 
+            RoundFloat(health[index]
+            * L4D_GetVersusMaxCompletionScore() 
+            * ratio / HEALTH_DIVISOR
+            / (MAX_REVIVES + SURVIVOR_LIMIT) 
+            * (MAX_REVIVES + SURVIVOR_LIMIT - health[REVIVE_COUNT_INDEX] - (SURVIVOR_LIMIT - health[ALIVE_COUNT_INDEX])));
 }
 
 /** 
@@ -194,46 +200,56 @@ public int GetTempHealth(client)
 }
 
 public void OnMapStart() {
-    isFirstRound = true;
     firstRoundBonus = 0;
     firstRoundHealth = {0, 0, 0, 0, 0, 0};
 }
 
 public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) 
 {
-    new health[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};
-    CalculateHealth(health);
-    new finalBonus = CalculateFinalBonus(health);
+    currentRoundHealth = {0, 0, 0, 0, 0, 0};
+    CalculateHealth(currentRoundHealth);
+    currentRoundBonus = CalculateFinalBonus(currentRoundHealth);
 
-    SetConVarInt(hCvarValveSurvivalBonus, finalBonus / health[ALIVE_COUNT_INDEX]); 
+    SetConVarInt(hCvarValveSurvivalBonus, currentRoundBonus / currentRoundHealth[ALIVE_COUNT_INDEX]); 
     SetConVarInt(hCvarValveTieBreaker, 0);
 
-    if (isFirstRound) {
-        firstRoundBonus = finalBonus;
-        copyTableValues(health, firstRoundHealth);
-        PrintRoundBonusAll(true, health, finalBonus);
-    } else {
-        PrintRoundBonusAll(true, firstRoundHealth, firstRoundBonus);    
-        PrintRoundBonusAll(false, health, finalBonus);    
-    }
-
-    isFirstRound = false;
+    CreateTimer(3.0, PrintEndBonus);
 
     return Plugin_Continue;
 }
 
+public Action PrintEndBonus(Handle timer, Handle hndl) 
+{
+    if (InSecondHalfOfRound()) {
+        PrintRoundBonusAll(true, firstRoundHealth, firstRoundBonus); 
+        PrintRoundBonusAll(false, currentRoundHealth, currentRoundBonus);    
+    } else {
+        firstRoundBonus = currentRoundBonus;
+        copyTableValues(currentRoundHealth, firstRoundHealth);
+        PrintRoundBonusAll(true, firstRoundHealth, firstRoundBonus);
+    }
+}
+
 public void PrintRoundBonusAll(bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
 {
-    PrintToChatAll("\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01 | Pills = \x03%d \x01]", 
-        firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
-        health[PILLS_HEALTH_INDEX]); 
+    if (finalBonus > 0) {
+        PrintToChatAll("\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01 | Pills = \x03%d \x01]", 
+            firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
+            health[PILLS_HEALTH_INDEX]); 
+    } else {
+        PrintToChatAll("\x04#%d \x01Bonus: \x05%d", firstRound ? 1 : 2, finalBonus)
+    }
 }
 
 public void PrintRoundBonusClient(int client, bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
 {
-    PrintToChat(client, "\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01 | Pills = \x03%d \x01]", 
-        firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
-        health[PILLS_HEALTH_INDEX]); 
+    if (finalBonus > 0) {
+        PrintToChat(client, "\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01 | Pills = \x03%d \x01]", 
+            firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
+            health[PILLS_HEALTH_INDEX]); 
+    } else {
+        PrintToChat(client, "\x04#%d \x01Bonus: \x05%d", firstRound ? 1 : 2, finalBonus); 
+    }
 }
 
 public void copyTableValues(int health[HEALTH_TABLE_SIZE], int healthCopy[HEALTH_TABLE_SIZE])
