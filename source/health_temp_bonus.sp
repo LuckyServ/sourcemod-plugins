@@ -11,7 +11,7 @@
 #define SURVIVOR_MAX_INCAPACITATED_COUNT GetConVarInt(FindConVar("survivor_max_incapacitated_count"))
 #define MAX_REVIVES (SURVIVOR_LIMIT * SURVIVOR_MAX_INCAPACITATED_COUNT)
 #define STOCK_TEMP_HEALTH (SURVIVOR_MAX_INCAPACITATED_COUNT * SURVIVOR_LIMIT * SURVIVOR_REVIVE_HEALTH)
-#define PAIN_PILLS_HEALTH GetConVarInt(FindConVar("pain_pills_health_value"))
+#define PAIN_PILLS_HEALTH 50
 
 /* Health divisor to keep bonus at reasonable numbers */
 #define HEALTH_DIVISOR GetConVarInt(FindConVar("sm_health_bonus_divisor")) 
@@ -29,13 +29,14 @@ new Handle:hCvarValveSurvivalBonus;
 new Handle:hCvarValveTieBreaker;
 new firstRoundBonus;
 new firstRoundHealth[HEALTH_TABLE_SIZE];
+new bool:isFirstRound;
 
 public Plugin myinfo =
 {
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "2.0",
+	version = "2.1",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -57,10 +58,10 @@ public Action Cmd_ShowBonus(client, args)
     new finalBonus = CalculateFinalBonus(health);
     
     if (InSecondHalfOfRound()) {
-        PrintRoundBonusAll(true, firstRoundHealth, firstRoundBonus);    
-        PrintRoundBonusAll(false, health, finalBonus);    
+        PrintRoundBonusClient(client, true, firstRoundHealth, firstRoundBonus);    
+        PrintRoundBonusClient(client, false, health, finalBonus);    
     } else {
-        PrintRoundBonusAll(true, health, finalBonus);
+        PrintRoundBonusClient(client, true, health, finalBonus);
     }
 }
 
@@ -141,7 +142,14 @@ public int GetTempHealth(client)
     }
 }
 
-public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) {
+public void OnMapStart() {
+    isFirstRound = true;
+    firstRoundBonus = 0;
+    firstRoundHealth = {0, 0, 0, 0, 0, 0};
+}
+
+public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) 
+{
     new health[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};
     CalculateHealth(health);
     new finalBonus = CalculateFinalBonus(health);
@@ -149,14 +157,16 @@ public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) {
     SetConVarInt(hCvarValveSurvivalBonus, finalBonus / health[ALIVE_COUNT_INDEX]); 
     SetConVarInt(hCvarValveTieBreaker, 0);
 
-    if (InSecondHalfOfRound()) {
-        PrintRoundBonusAll(true, firstRoundHealth, firstRoundBonus);    
-        PrintRoundBonusAll(false, health, finalBonus);    
-    } else {
+    if (isFirstRound) {
         firstRoundBonus = finalBonus;
         copyTableValues(health, firstRoundHealth);
         PrintRoundBonusAll(true, health, finalBonus);
+    } else {
+        PrintRoundBonusAll(true, firstRoundHealth, firstRoundBonus);    
+        PrintRoundBonusAll(false, health, finalBonus);    
     }
+
+    isFirstRound = false;
 
     return Plugin_Continue;
 }
@@ -164,6 +174,13 @@ public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) {
 public void PrintRoundBonusAll(bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
 {
     PrintToChatAll("\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01 | Pills = \x03%d \x01]", 
+        firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
+        health[PILLS_HEALTH_INDEX]); 
+}
+
+public void PrintRoundBonusClient(int client, bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
+{
+    PrintToChat(client, "\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01 | Pills = \x03%d \x01]", 
         firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
         health[PILLS_HEALTH_INDEX]); 
 }
