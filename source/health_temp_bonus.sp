@@ -36,7 +36,7 @@ public Plugin myinfo =
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "0.4",
+	version = "1.0",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -92,13 +92,26 @@ public void CalculateHealth(int health[HEALTH_TABLE_SIZE])
 
 public int CalculateFinalBonus(health[HEALTH_TABLE_SIZE]) 
 {
-    new Float:healthRatios = (health[PERM_HEALTH_INDEX] * L4D_GetVersusMaxCompletionScore() * PERM_RATIO)
-                                + (CalculateTotalTempHealth(health) * L4D_GetVersusMaxCompletionScore() * (1.0 - PERM_RATIO)); 
-    new Float:healthAlive = (healthRatios / NUMBER_SURVIVORS) * health[ALIVE_COUNT_INDEX];
-    new Float:healthRevives = (healthAlive / MAX_REVIVES) * (MAX_REVIVES - health[REVIVE_COUNT_INDEX] + 1.0);
-    new Float:healthFinal = healthRevives / HEALTH_DIVISOR;
+    health[PERM_HEALTH_INDEX] = 
+        RoundFloat(health[PERM_HEALTH_INDEX] 
+        * L4D_GetVersusMaxCompletionScore() 
+        * PERM_RATIO / HEALTH_DIVISOR
+        / NUMBER_SURVIVORS * health[ALIVE_COUNT_INDEX]
+        / MAX_REVIVES * (MAX_REVIVES - health[REVIVE_COUNT_INDEX]));
 
-    return RoundFloat(healthFinal);
+    for (new i = TEMP_HEALTH_INDEX; i <= PILLS_HEALTH_INDEX; ++i) {
+        health[i] = 
+            RoundFloat(health[i]
+            * L4D_GetVersusMaxCompletionScore() 
+            * (1.0 - PERM_RATIO) / HEALTH_DIVISOR
+            / NUMBER_SURVIVORS * health[ALIVE_COUNT_INDEX]
+            / MAX_REVIVES * (MAX_REVIVES - health[REVIVE_COUNT_INDEX]));
+    }
+
+    return health[PERM_HEALTH_INDEX] 
+            + health[TEMP_HEALTH_INDEX] 
+            + health[STOCK_TEMP_HEALTH_INDEX]
+            + health[PILLS_HEALTH_INDEX]; 
 }
 
 public int CalculateTotalTempHealth(health[HEALTH_TABLE_SIZE])
@@ -184,7 +197,8 @@ public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) {
 public void PrintRoundBonusAll(bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
 {
     PrintToChatAll("\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01 | Pills = \x03%d \x01]", 
-        firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], health[PILLS_HEALTH_INDEX]); 
+        firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
+        health[PILLS_HEALTH_INDEX]); 
 }
 
 public void copyTableValues(int health[HEALTH_TABLE_SIZE], int healthCopy[HEALTH_TABLE_SIZE])
