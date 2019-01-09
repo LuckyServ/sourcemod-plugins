@@ -336,7 +336,7 @@ InSecondHalfOfRound()
  */
 GetSurvivorPermanentHealth(client)
 {
-	return L4D_GetPlayerReviveCount(client) > 0 ? 
+    return L4D_GetPlayerReviveCount(client) > 0 ? 
         0 : (GetEntProp(client, Prop_Send, "m_iHealth") > 0 ? 
             GetEntProp(client, Prop_Send, "m_iHealth") : 0);
 }
