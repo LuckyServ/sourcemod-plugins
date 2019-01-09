@@ -67,18 +67,18 @@
 #define DEBUG 0
 
 /* Ratio */
-#define PERM_RATIO GetConVarFloat(FindConVar("sm_perm_ratio"))
+#define PERM_RATIO GetConVarFloat(cvarPermRatio)
 
 /* ConVars */
-#define SURVIVOR_REVIVE_HEALTH GetConVarInt(FindConVar("survivor_revive_health"))
-#define SURVIVOR_LIMIT GetConVarInt(FindConVar("survivor_limit"))
-#define SURVIVOR_MAX_INCAPACITATED_COUNT GetConVarInt(FindConVar("survivor_max_incapacitated_count"))
+#define SURVIVOR_REVIVE_HEALTH GetConVarInt(cvarSurvivorReviveHealth)
+#define SURVIVOR_LIMIT GetConVarInt(cvarSurvivorLimit)
+#define SURVIVOR_MAX_INCAPACITATED_COUNT GetConVarInt(cvarSurvivorMaxIncapCount)
 #define MAX_REVIVES (SURVIVOR_LIMIT * SURVIVOR_MAX_INCAPACITATED_COUNT)
 #define STOCK_TEMP_HEALTH (SURVIVOR_MAX_INCAPACITATED_COUNT * SURVIVOR_LIMIT * SURVIVOR_REVIVE_HEALTH)
-#define PAIN_PILLS_HEALTH GetConVarInt(FindConVar("sm_pain_pills_add_pool"))
+#define PAIN_PILLS_HEALTH GetConVarInt(cvarPainPillsAddPool)
 
 /* Health divisor to keep bonus at reasonable numbers */
-#define HEALTH_DIVISOR GetConVarInt(FindConVar("sm_health_bonus_divisor")) 
+#define HEALTH_DIVISOR GetConVarInt(cvarHealthBonusDivisor) 
 
 /* Health Index values */
 #define HEALTH_TABLE_SIZE 6
@@ -91,31 +91,46 @@
 
 new Handle:hCvarValveSurvivalBonus;
 new Handle:hCvarValveTieBreaker;
+new Handle:cvarPermRatio;
+new Handle:cvarSurvivorReviveHealth;
+new Handle:cvarSurvivorLimit;
+new Handle:cvarSurvivorMaxIncapCount;
+new Handle:cvarPainPillsAddPool;
+new Handle:cvarHealthBonusDivisor;
 new firstRoundBonus;
 new firstRoundHealth[HEALTH_TABLE_SIZE];
 new currentRoundBonus;
 new currentRoundHealth[HEALTH_TABLE_SIZE];
+
 
 public Plugin myinfo =
 {
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "2.3",
+	version = "2.4",
 	url = "https://github.com/LuckyServ/"
 };
 
 public OnPluginStart() 
 {
+    RegConsoleCmd("sm_health", Cmd_ShowBonus, "Show current bonus");
+
     CreateConVar("sm_perm_ratio", "0.7", "Permanent health to temporary health ratio", 
         FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_health_bonus_divisor", "200.0", "Health divisor to keep bonus at reasonable numbers",
         FCVAR_NONE, true, 1.0);
     CreateConVar("sm_pain_pills_add_pool", "50", "How much temporary health pain pills add to the pool",
         FCVAR_NONE, true, 0.0);
-    RegConsoleCmd("sm_health", Cmd_ShowBonus, "Show current bonus");
+
     hCvarValveSurvivalBonus = FindConVar("vs_survival_bonus");
     hCvarValveTieBreaker = FindConVar("vs_tiebreak_bonus");
+    cvarPermRatio = FindConVar("sm_perm_ratio");
+    cvarSurvivorReviveHealth = FindConVar("survivor_revive_health");
+    cvarSurvivorLimit = FindConVar("survivor_limit");
+    cvarSurvivorMaxIncapCount = FindConVar("survivor_max_incapacitated_count");
+    cvarPainPillsAddPool = FindConVar("sm_pain_pills_add_pool");
+    cvarHealthBonusDivisor = FindConVar("sm_health_bonus_divisor");
 }
 
 /**
