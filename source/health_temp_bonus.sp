@@ -102,13 +102,12 @@ new firstRoundHealth[HEALTH_TABLE_SIZE];
 new currentRoundBonus;
 new currentRoundHealth[HEALTH_TABLE_SIZE];
 
-
 public Plugin myinfo =
 {
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "2.4",
+	version = "2.5",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -160,8 +159,8 @@ public void CalculateHealth(int health[HEALTH_TABLE_SIZE])
     for(new client = 1; client <= MaxClients; ++client) {
         if (IsSurvivor(client)) {
             if (IsPlayerAlive(client) && !L4D_IsPlayerIncapacitated(client)) {
-                health[PERM_HEALTH_INDEX] += GetClientHealth(client);
-                health[TEMP_HEALTH_INDEX] += GetTempHealth(client); 
+                health[PERM_HEALTH_INDEX] += GetSurvivorPermanentHealth(client);
+                health[TEMP_HEALTH_INDEX] += GetSurvivorTempHealth(client); 
                 revives += L4D_GetPlayerReviveCount(client);
                 health[ALIVE_COUNT_INDEX]++;
                 if (HasPills(client)) {
@@ -216,7 +215,7 @@ public void ApplyBonusFactors(health[HEALTH_TABLE_SIZE], float ratio, index)
 /** 
  * https://forums.alliedmods.net/showthread.php?t=144780 
  */
-public int GetTempHealth(client) 
+public int GetSurvivorTempHealth(client) 
 {
     new Float:buffer = GetEntPropFloat(client, Prop_Send, "m_healthBuffer"); 
     new Float:TempHealth = 0.0;
@@ -297,7 +296,10 @@ public void copyTableValues(int health[HEALTH_TABLE_SIZE], int healthCopy[HEALTH
 
 stock bool:IsSurvivor(client)                                                   
 {                                                                               
-    return client > 0 && client < MaxClients && IsClientInGame(client) && GetClientTeam(client) == 2; 
+    return client > 0 
+        && client < MaxClients 
+        && IsClientInGame(client) 
+        && GetClientTeam(client) == 2; 
 }
 
 stock bool:L4D_IsPlayerIncapacitated(client)
@@ -327,4 +329,14 @@ stock bool HasPills(client)
 InSecondHalfOfRound()
 {
     return GameRules_GetProp("m_bInSecondHalfOfRound");
+}
+
+/*
+ * Credits to Visor for this one. 
+ */
+GetSurvivorPermanentHealth(client)
+{
+	return L4D_GetPlayerReviveCount(client) > 0 ? 
+        0 : (GetEntProp(client, Prop_Send, "m_iHealth") > 0 ? 
+            GetEntProp(client, Prop_Send, "m_iHealth") : 0);
 }
