@@ -107,7 +107,7 @@ public Plugin myinfo =
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "2.5",
+	version = "2.6",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -245,7 +245,7 @@ public Action L4D2_OnEndVersusModeRound(bool:countSurvivors)
     CalculateHealth(currentRoundHealth);
     currentRoundBonus = CalculateFinalBonus(currentRoundHealth);
 
-    SetConVarInt(hCvarValveSurvivalBonus, currentRoundBonus / currentRoundHealth[ALIVE_COUNT_INDEX]); 
+    SetConVarInt(hCvarValveSurvivalBonus, RoundFloat(float(currentRoundBonus) / currentRoundHealth[ALIVE_COUNT_INDEX])); 
     SetConVarInt(hCvarValveTieBreaker, 0);
 
     CreateTimer(3.0, PrintEndBonus);
@@ -336,7 +336,7 @@ InSecondHalfOfRound()
  */
 GetSurvivorPermanentHealth(client)
 {
-    return L4D_GetPlayerReviveCount(client) > 0 ? 
+	return L4D_GetPlayerReviveCount(client) > 0 ? 
         0 : (GetEntProp(client, Prop_Send, "m_iHealth") > 0 ? 
             GetEntProp(client, Prop_Send, "m_iHealth") : 0);
 }
