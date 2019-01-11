@@ -102,7 +102,6 @@ new firstRoundBonus;
 new firstRoundHealth[HEALTH_TABLE_SIZE];
 new currentRoundBonus;
 new currentRoundHealth[HEALTH_TABLE_SIZE];
-new iMapDistance;
 
 public Plugin myinfo =
 {
@@ -136,8 +135,7 @@ public OnPluginStart()
 
 public OnConfigsExecuted()
 {
-	iMapDistance = L4D2_GetMapValueInt("max_distance", L4D_GetVersusMaxCompletionScore());
-	L4D_SetVersusMaxCompletionScore(iMapDistance);
+	L4D_SetVersusMaxCompletionScore(L4D2_GetMapValueInt("max_distance", L4D_GetVersusMaxCompletionScore()));
 }
 
 /**
@@ -214,7 +212,7 @@ public void ApplyBonusFactors(health[HEALTH_TABLE_SIZE], float ratio, index)
 {
         health[index] = 
             RoundFloat(health[index]
-            * iMapDistance 
+            * L4D_GetVersusMaxCompletionScore() 
             * ratio / HEALTH_DIVISOR
             / (MAX_REVIVES + SURVIVOR_LIMIT) 
             * (MAX_REVIVES + SURVIVOR_LIMIT - health[REVIVE_COUNT_INDEX] - (SURVIVOR_LIMIT - health[ALIVE_COUNT_INDEX])));
