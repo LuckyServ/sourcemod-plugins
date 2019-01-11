@@ -63,6 +63,7 @@
 #include <sourcemod>
 #include <left4downtown>
 #include <sdktools>
+#include <l4d2lib>
 
 #define DEBUG 0
 
@@ -101,6 +102,7 @@ new firstRoundBonus;
 new firstRoundHealth[HEALTH_TABLE_SIZE];
 new currentRoundBonus;
 new currentRoundHealth[HEALTH_TABLE_SIZE];
+new iMapDistance;
 
 public Plugin myinfo =
 {
@@ -130,6 +132,13 @@ public OnPluginStart()
     cvarSurvivorMaxIncapCount = FindConVar("survivor_max_incapacitated_count");
     cvarPainPillsAddPool = FindConVar("sm_pain_pills_add_pool");
     cvarHealthBonusDivisor = FindConVar("sm_health_bonus_divisor");
+}
+
+public OnConfigsExecuted()
+{
+
+	iMapDistance = L4D2_GetMapValueInt("max_distance", L4D_GetVersusMaxCompletionScore());
+	L4D_SetVersusMaxCompletionScore(iMapDistance);
 }
 
 /**
@@ -206,7 +215,7 @@ public void ApplyBonusFactors(health[HEALTH_TABLE_SIZE], float ratio, index)
 {
         health[index] = 
             RoundFloat(health[index]
-            * L4D_GetVersusMaxCompletionScore() 
+            * iMapDistance 
             * ratio / HEALTH_DIVISOR
             / (MAX_REVIVES + SURVIVOR_LIMIT) 
             * (MAX_REVIVES + SURVIVOR_LIMIT - health[REVIVE_COUNT_INDEX] - (SURVIVOR_LIMIT - health[ALIVE_COUNT_INDEX])));
