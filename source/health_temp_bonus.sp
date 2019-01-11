@@ -57,7 +57,7 @@
  * 
  * Author: Luckylock
  * 
- * Testers and feedback: Adam, Hib
+ * Testers and feedback: Adam, Hib, Sir, Dusty
  */
 
 #include <sourcemod>
@@ -136,7 +136,6 @@ public OnPluginStart()
 
 public OnConfigsExecuted()
 {
-
 	iMapDistance = L4D2_GetMapValueInt("max_distance", L4D_GetVersusMaxCompletionScore());
 	L4D_SetVersusMaxCompletionScore(iMapDistance);
 }
