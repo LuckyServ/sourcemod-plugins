@@ -107,7 +107,7 @@ public Plugin myinfo =
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "2.6",
+	version = "2.7",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -268,22 +268,22 @@ public Action PrintEndBonus(Handle timer, Handle hndl)
 public void PrintRoundBonusAll(bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
 {
     if (finalBonus > 0) {
-        PrintToChatAll("\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01 | Pills = \x03%d \x01]", 
+        PrintToChatAll("\x01R\x04#%d \x01Bonus: \x05%d \x01[ Perm: \x03%d \x01| Temp: \x03%d \x01 | Pills: \x03%d \x01]", 
             firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
             health[PILLS_HEALTH_INDEX]); 
     } else {
-        PrintToChatAll("\x04#%d \x01Bonus: \x05%d", firstRound ? 1 : 2, finalBonus)
+        PrintToChatAll("\x01R\x04#%d \x01Bonus: \x05%d", firstRound ? 1 : 2, finalBonus)
     }
 }
 
 public void PrintRoundBonusClient(int client, bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
 {
     if (finalBonus > 0) {
-        PrintToChat(client, "\x04#%d \x01Bonus: \x05%d \x01[ Perm = \x03%d \x01| Temp = \x03%d \x01 | Pills = \x03%d \x01]", 
+        PrintToChat(client, "\x01R\x04#%d \x01Bonus: \x05%d \x01[ Perm: \x03%d \x01| Temp: \x03%d \x01 | Pills: \x03%d \x01]", 
             firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
             health[PILLS_HEALTH_INDEX]); 
     } else {
-        PrintToChat(client, "\x04#%d \x01Bonus: \x05%d", firstRound ? 1 : 2, finalBonus); 
+        PrintToChat(client, "\x01R\x04#%d \x01Bonus: \x05%d", firstRound ? 1 : 2, finalBonus); 
     }
 }
 
