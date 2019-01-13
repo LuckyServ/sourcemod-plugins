@@ -250,8 +250,10 @@ public Action L4D2_OnEndVersusModeRound(bool:countSurvivors)
     currentRoundHealth = {0, 0, 0, 0, 0, 0};
     CalculateHealth(currentRoundHealth);
     currentRoundBonus = CalculateFinalBonus(currentRoundHealth);
+    new survivalBonus = currentRoundHealth[ALIVE_COUNT_INDEX] > 0 ? 
+        RoundFloat(float(currentRoundBonus) / currentRoundHealth[ALIVE_COUNT_INDEX]) : 0;
 
-    SetConVarInt(hCvarValveSurvivalBonus, RoundFloat(float(currentRoundBonus) / currentRoundHealth[ALIVE_COUNT_INDEX])); 
+    SetConVarInt(hCvarValveSurvivalBonus, survivalBonus); 
     SetConVarInt(hCvarValveTieBreaker, 0);
 
     CreateTimer(3.0, PrintEndBonus);
