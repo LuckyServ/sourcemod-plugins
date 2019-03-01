@@ -1,7 +1,5 @@
 #include <sourcemod>
 
-new bool:startedCrashCheck = false;
-new bool:crashNextCheck = false; 
 new bool:isFirstMapStart = true;
  
 public Plugin myinfo =
@@ -20,35 +18,18 @@ public void OnPluginStart()
 
 public void OnPluginEnd()
 {
-    CrashIfNoHumans();
+    CrashIfNoHumans(INVALID_HANDLE);
 }
 
 public void OnMapStart()
 {
-    if(!isFirstMapStart && !startedCrashCheck) {
-        StartCrashCheck();
+    if(!isFirstMapStart) {
+        CreateTimer(10.0, CrashIfNoHumans, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE); 
     }
     isFirstMapStart = false;
 }
 
-public void StartCrashCheck()
-{
-    CreateTimer(10.0, CrashCheck, INVALID_HANDLE, TIMER_REPEAT); 
-    startedCrashCheck = true;
-}
-
-public Action CrashCheck(Handle timer)
-{
-    if (crashNextCheck) {
-        CrashIfNoHumans();
-    } else {
-        crashNextCheck = !HumanFound();
-    }
-
-    return Plugin_Continue;
-}
-
-public void CrashIfNoHumans() 
+public Action CrashIfNoHumans(Handle timer) 
 {
     if (!HumanFound()) {
         CrashServer();
