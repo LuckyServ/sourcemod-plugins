@@ -25,8 +25,7 @@ public void OnPluginEnd()
 
 public void OnMapStart()
 {
-    if(!isFirstMapStart && !startedCrashCheck)
-    {
+    if(!isFirstMapStart && !startedCrashCheck) {
         StartCrashCheck();
     }
     isFirstMapStart = false;
@@ -40,12 +39,9 @@ public void StartCrashCheck()
 
 public Action CrashCheck(Handle timer)
 {
-    if (crashNextCheck)
-    {
+    if (crashNextCheck) {
         CrashIfNoHumans();
-    } 
-    else 
-    {
+    } else {
         crashNextCheck = !HumanFound();
     }
 
