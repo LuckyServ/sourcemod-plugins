@@ -7,7 +7,7 @@ public Plugin myinfo =
 	name = "L4D2 Server Restarter",
 	author = "Luckylock",
 	description = "Restarts server automatically. Uses the built-in restart of srcds_run",
-	version = "1.5",
+	version = "1.6",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -24,7 +24,7 @@ public void OnPluginEnd()
 public void OnMapStart()
 {
     if(!isFirstMapStart) {
-        CreateTimer(10.0, CrashIfNoHumans, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE); 
+        CreateTimer(30.0, CrashIfNoHumans, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE); 
     }
     isFirstMapStart = false;
 }
@@ -54,8 +54,6 @@ public bool HumanFound()
 public void CrashServer()
 {
     PrintToServer("L4D2 Server Restarter: Crashing the server...");
-    ServerCommand("sm plugins load_unlock");
-    ServerCommand("sm plugins unload smac/smac_cvars.smx");
-    ServerCommand("sv_cheats 1");
+    SetCommandFlags("crash", GetCommandFlags("crash")^FCVAR_CHEAT);
     ServerCommand("crash");
 }
