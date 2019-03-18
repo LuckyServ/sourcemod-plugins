@@ -7,7 +7,7 @@ public Plugin myinfo =
 	name = "L4D2 Server Restarter",
 	author = "Luckylock",
 	description = "Restarts server automatically. Uses the built-in restart of srcds_run",
-	version = "1.6",
+	version = "1.7",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -54,6 +54,6 @@ public bool HumanFound()
 public void CrashServer()
 {
     PrintToServer("L4D2 Server Restarter: Crashing the server...");
-    SetCommandFlags("crash", GetCommandFlags("crash")^FCVAR_CHEAT);
+    SetCommandFlags("crash", GetCommandFlags("crash")&~FCVAR_CHEAT);
     ServerCommand("crash");
 }
