@@ -20,7 +20,7 @@ new Handle:cvarRockTankLagComp;
 
 /**
  * Block 0: Entity Index
- * Block 1: Array of x,y,z positions where: 
+ * Block 1: Array of x,y,z rock positions history where: 
  * (frame number) % SERVER_TICKRATE == (array index)
  */
 new ArrayList:rockEntitiesArray;
@@ -36,11 +36,11 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-    RegConsoleCmd("sm_ray", Cmd_DrawRay, "Destroy rock (lag compensated)");
-    rockEntitiesArray = CreateArray(2);
+    RegConsoleCmd("sm_ray", ProcessRockHitboxes, "Destroy rock (lag compensated)");
     CreateConVar("sm_rock_tank_lagcomp_enabled", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
 
     cvarRockTankLagComp = FindConVar("sm_rock_tank_lagcomp_enabled"); 
+    rockEntitiesArray = CreateArray(2);
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -75,19 +75,31 @@ public void OnGameFrame()
         posArray.Set(index, pos[1], 1);
         posArray.Set(index, pos[2], 2);
     }
-
 }
 
 /**
  * Array Methods
  */
 
+
+/**
+ * Adds a new rock to the array.
+ *
+ * @param array array of rocks
+ * @param entity entity index of the rock
+ */
 public void Array_AddNewRock(ArrayList array, int entity)
 {
     new index = array.Push(EntIndexToEntRef(entity));
     array.Set(index, CreateArray(3, SERVER_TICKRATE), 1);
 }
 
+/**
+ * Remove a rock from the array.
+ *
+ * @param array array of rocks
+ * @param entity entity index of the rock
+ */
 public void Array_RemoveRock(ArrayList array, int entity)
 {
     new index = Array_SearchRock(array, entity);
@@ -99,6 +111,14 @@ public void Array_RemoveRock(ArrayList array, int entity)
     }
 }
 
+
+/**
+ * Searches a rock in the array.
+ *
+ * @param array array of rocks
+ * @param entity entity index to search for
+ * @return array index if found, -1 if not found.
+ */
 public int Array_SearchRock(ArrayList array, entity)
 {
     new rockEntity;
@@ -118,66 +138,62 @@ public int Array_SearchRock(ArrayList array, entity)
  * Ray Methods
  */
 
-public Action Cmd_DrawRay(int client, int args)
+public Action ProcessRockHitboxes(int client, int args)
 {
     new Float:eyeAng[3];
     new Float:eyePos[3];
-    new Float:hitPosition[3];
-
 
     // Rollback rock position
     new Float:lagTime = GetClientLatency(client, NetFlow_Both); /* Should add lerp as well */
-    new rollBackTick = GetGameTickCount() - RoundToNearest(lagTime / GetTickInterval());
-
-
-    if (LAG_COMP_ENABLED) {
-        PrintToChatAll("%d - %d = %d", GetGameTickCount(), rollBackTick,
-            GetGameTickCount() - rollBackTick);
-        // Move rock(s) back in time
-        Array_MoveRocks(rockEntitiesArray, rollBackTick % 100);
-    }
+    new rollBackTick = LAG_COMP_ENABLED ? 
+        GetGameTickCount() - RoundToNearest(lagTime / GetTickInterval()) : GetGameTickCount();
 
     GetClientEyeAngles(client, eyeAng);
     GetClientEyePosition(client, eyePos);
 
-    new Handle:ray = TR_TraceRayFilterEx(eyePos, eyeAng, MASK_SHOT, 
-        RayType_Infinite, Trace_FilterSelf, client); 
+    // Abstract sphere hitbox implementation
+    // https://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
 
-    if (TR_DidHit(ray)) {
-        TR_GetEndPosition(hitPosition, ray);
-#if DEBUG
-        PrintEntityLocation(TR_GetEntityIndex(ray));
-#endif
-        DestroyRock(TR_GetEntityIndex(ray));
-    }
+    // Get unit vector l
+    new Float:l[3];
+    GetAngleVectors(eyeAng, l, NULL_VECTOR, NULL_VECTOR);
 
-    CloseHandle(ray);
+    // Get origin of line o
+    new Float:o[3];
+    o[0] = eyePos[0];
+    o[1] = eyePos[1];
+    o[2] = eyePos[2];
+    new Float:o_Minus_c[3];
 
-    // Move rock(s) back to current frame
-    Array_MoveRocks(rockEntitiesArray, GetGameTickCount() % 100);
+    // Sphere vectors
+    new Float:radius = 30.0;
+    new Float:c[3];
 
-    return Plugin_Continue;
-}
-
-public bool: Trace_FilterSelf(entity, mask, any:data) {
-    return entity != data;
-}
-
-public void Array_MoveRocks(ArrayList array, tick)
-{
-    new ArrayList:rockPos;
-    new Float:pos[3];
+    new ArrayList:rockPositionsArray;
     new entity;
+    new index = rollBackTick % 100;
 
-    for (int i = 0; i < array.Length; ++i)
-    {
-        entity = array.Get(i,0);
-        rockPos = array.Get(i,1);
-        pos[0] = rockPos.Get(tick,0);
-        pos[1] = rockPos.Get(tick,1);
-        pos[2] = rockPos.Get(tick,2);
-        SetEntPropVector(EntRefToEntIndex(entity), Prop_Send, "m_vecOrigin", pos);
+    PrintToChatAll("%d - %d = %d", GetGameTickCount(), rollBackTick, GetGameTickCount() - rollBackTick);
+
+    for (int i = 0; i < rockEntitiesArray.Length; ++i) {
+
+        entity = rockEntitiesArray.Get(i,0); 
+        rockPositionsArray = rockEntitiesArray.Get(i,1);
+
+        c[0] = rockPositionsArray.Get(index, 0);
+        c[1] = rockPositionsArray.Get(index, 1);
+        c[2] = rockPositionsArray.Get(index, 2);
+        SubtractVectors(o,c,o_Minus_c);
+
+        new Float:delta = GetVectorDotProduct(l, o_Minus_c) * GetVectorDotProduct(l, o_Minus_c) 
+            - GetVectorLength(o_Minus_c, true) + radius*radius;
+
+        if (delta >= 0.0) {
+            CTankRock__Detonate(EntRefToEntIndex(entity));
+        }
     }
+
+    return Plugin_Handled;
 }
 
 /**
@@ -206,9 +222,31 @@ public bool IsRock(int entity)
     return false;
 }
 
-public void DestroyRock(int entity)
+// Credits to Visor
+CTankRock__Detonate(rock)
 {
-    if (IsRock(entity)) {
-        RemoveEdict(entity);
+    static Handle:call = INVALID_HANDLE;
+    if (call == INVALID_HANDLE)
+    {
+        StartPrepSDKCall(SDKCall_Entity);
+        if (!PrepSDKCall_SetSignature(SDKLibrary_Server, "@_ZN9CTankRock8DetonateEv", 0))
+        {
+            return;
+        }
+        call = EndPrepSDKCall();
+        if (call == INVALID_HANDLE)
+        {
+            return;
+        }
     }
+    SDKCall(call, rock);
+}
+
+/**
+ * Vector functions
+ */
+
+public void Vector_Print(float[3] v)
+{
+    PrintToChatAll("(%.2f, %.2f, %.2f)", v[0],v[1],v[2]);
 }
