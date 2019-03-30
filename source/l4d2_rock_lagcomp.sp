@@ -51,9 +51,14 @@
  * ----
  * TODO
  * ----
- * - Incap cvars and for pistols / magnums damage / range.
- * - Implement a rock initial godframe.
+ * - Make rock detonate animation play for the client that kills the rock
+ *     The rock detonate animation only plays when the survivor shoots the rock
+ *     at the server side origin vector.
+ *
+ * - Incap cvars for pistols / magnums damage / range.
+ * - Implement a rock initial godframe time.
  * - Implement a Melee Swing delay instead of it being an instant hitscan.
+ * - Make throwables kill the rock.
  */
 
 
@@ -134,7 +139,7 @@ public void OnPluginStart()
     CreateConVar("sm_rock_lagcomp", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_health", "1", "Rock health", FCVAR_NONE, true, 0.0, true, 1.0);
 
-    CreateConVar("sm_rock_damage_pistol", "150", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
+    CreateConVar("sm_rock_damage_pistol", "75", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
     CreateConVar("sm_rock_damage_magnum", "1000", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
     CreateConVar("sm_rock_damage_shotgun", "600", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
     CreateConVar("sm_rock_damage_smg", "75", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
@@ -359,7 +364,7 @@ rockEntity)
     event.GetString("weapon", weaponName, MAX_STR_LEN);
     new Float:range = GetVectorDistance(eyePos, c);
 
-    //PrintToChatAll("Weapon: %s | Range: %.2f", weaponName, range);
+    PrintToChatAll("Weapon: %s | Range: %.2f", weaponName, range);
 
     if ((!ROCK_HITBOX_ENABLED) || range > RANGE_MAX_ALL || (range < RANGE_MIN_ALL && !IsMelee(weaponName))) {
         return;
@@ -400,7 +405,7 @@ public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range)
     new Float:rockDamage = rockEntitiesArray.Get(rockIndex, 2);
     rockDamage += damage / range;
 
-    //PrintToChatAll("Rock health: %.2f", ROCK_HEALTH - rockDamage);
+    PrintToChatAll("Rock health: %.2f", ROCK_HEALTH - rockDamage);
 
     if (rockDamage >= ROCK_HEALTH) {
         CTankRock__Detonate(EntRefToEntIndex(rockEntity));
