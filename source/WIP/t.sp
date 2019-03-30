@@ -8,20 +8,35 @@
  * Author: Luckylock
  */
 
+
 #include <sourcemod>
 #include <sdktools>
+#include <sdkhooks>
 
 #define DEBUG 0
 #define MAX_STR_LEN 100
-#define SERVER_TICKRATE 100
+#define MAX_HISTORY_FRAMES 100
 #define LAG_COMP_ENABLED GetConVarInt(cvarRockTankLagComp)
+#define NUM_BULLETS_ROCK GetConVarInt(cvarNumBulletsRock)
+#define SPHERE_HITBOX_RADIUS float(30)
+
+#define RANGE_MAX_ALL 1500
+#define RANGE_PISTOL 750
+#define RANGE_MAGNUM 750
+#define RANGE_SHOTGUN 500
+#define RANGE_SMG 1000
+#define RANGE_RIFLE 1000
+#define RANGE_MELEE 50
+#define RANGE_SNIPER 1500
 
 new Handle:cvarRockTankLagComp;
+new Handle:cvarNumBulletsRock;
 
 /**
  * Block 0: Entity Index
  * Block 1: Array of x,y,z rock positions history where: 
- * (frame number) % SERVER_TICKRATE == (array index)
+ * (frame number) % MAX_HISTORY_FRAMES == (array index)
+ * Block 2: Number of uzi hits
  */
 new ArrayList:rockEntitiesArray;
 
@@ -36,11 +51,14 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-    RegConsoleCmd("sm_ray", ProcessRockHitboxes, "Destroy rock (lag compensated)");
-    CreateConVar("sm_rock_tank_lagcomp_enabled", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
+//    RegConsoleCmd("sm_ray", ProcessRockHitboxes, "Destroy rock (lag compensated)");
+    CreateConVar("sm_rock_lagcomp", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
+    CreateConVar("sm_rock_num_bullets", "3", "Number of smg, rifle or pistol bullets needed to kill a rock", FCVAR_NONE, true, 0.0, true, 100.0);
 
-    cvarRockTankLagComp = FindConVar("sm_rock_tank_lagcomp_enabled"); 
-    rockEntitiesArray = CreateArray(2);
+    cvarRockTankLagComp = FindConVar("sm_rock_lagcomp"); 
+    cvarNumBulletsRock = FindConVar("sm_rock_num_bullets"); 
+    rockEntitiesArray = CreateArray(3);
+    HookEvent("weapon_fire", ProcessRockHitboxes);
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -50,6 +68,7 @@ public void OnEntityCreated(int entity, const char[] classname)
         PrintEntityLocation(entity);
 #endif
         Array_AddNewRock(rockEntitiesArray, entity);
+        SDKHook(entity, SDKHook_OnTakeDamage, PreventDamage);
     }
 }
 
@@ -61,11 +80,16 @@ public void OnEntityDestroyed(int entity)
     Array_RemoveRock(rockEntitiesArray, entity);
 }
 
+public Action PreventDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype) {
+    damage = 0.0;
+    return Plugin_Handled;
+}
+
 public void OnGameFrame()
 {
     new Float:pos[3];
     new entity;
-    new index = GetGameTickCount() % SERVER_TICKRATE; 
+    new index = GetGameTickCount() % MAX_HISTORY_FRAMES; 
     
     for (int i = 0; i < rockEntitiesArray.Length; ++i) {
         entity = rockEntitiesArray.Get(i,0); 
@@ -81,7 +105,6 @@ public void OnGameFrame()
  * Array Methods
  */
 
-
 /**
  * Adds a new rock to the array.
  *
@@ -91,7 +114,8 @@ public void OnGameFrame()
 public void Array_AddNewRock(ArrayList array, int entity)
 {
     new index = array.Push(EntIndexToEntRef(entity));
-    array.Set(index, CreateArray(3, SERVER_TICKRATE), 1);
+    array.Set(index, CreateArray(3, MAX_HISTORY_FRAMES), 1);
+    array.Set(index, 0, 2);
 }
 
 /**
@@ -138,13 +162,23 @@ public int Array_SearchRock(ArrayList array, entity)
  * Ray Methods
  */
 
-public Action ProcessRockHitboxes(int client, int args)
+public Action ProcessRockHitboxes(Event event, const char[] name, 
+    bool dontBroadcast)
 {
+    if (rockEntitiesArray.Length == 0) {
+        return Plugin_Handled;
+    }
+
+    new client = GetClientOfUserId(event.GetInt("userid"));
+
     new Float:eyeAng[3];
     new Float:eyePos[3];
 
     // Rollback rock position
-    new Float:lagTime = GetClientLatency(client, NetFlow_Both); /* Should add lerp as well */
+    new String:buffer[MAX_STR_LEN];
+    GetClientInfo(client, "cl_interp", buffer, MAX_STR_LEN);
+    new Float:clientLerp = StringToFloat(buffer);
+    new Float:lagTime = GetClientLatency(client, NetFlow_Both) + clientLerp;
     new rollBackTick = LAG_COMP_ENABLED ? 
         GetGameTickCount() - RoundToNearest(lagTime / GetTickInterval()) : GetGameTickCount();
 
@@ -166,12 +200,12 @@ public Action ProcessRockHitboxes(int client, int args)
     new Float:o_Minus_c[3];
 
     // Sphere vectors
-    new Float:radius = 30.0;
+    new Float:radius = SPHERE_HITBOX_RADIUS;
     new Float:c[3];
 
     new ArrayList:rockPositionsArray;
     new entity;
-    new index = rollBackTick % 100;
+    new index = rollBackTick % MAX_HISTORY_FRAMES;
 
     PrintToChatAll("%d - %d = %d", GetGameTickCount(), rollBackTick, GetGameTickCount() - rollBackTick);
 
@@ -189,11 +223,111 @@ public Action ProcessRockHitboxes(int client, int args)
             - GetVectorLength(o_Minus_c, true) + radius*radius;
 
         if (delta >= 0.0) {
-            CTankRock__Detonate(EntRefToEntIndex(entity));
+            ApplyDamageOnRock(i, client, eyePos, c, event, entity);
         }
     }
 
     return Plugin_Handled;
+}
+
+public void ApplyDamageOnRock(rockIndex, client, float[3] eyePos, float[3] c, Event event,
+rockEntity)
+{
+    new String:weaponName[MAX_STR_LEN]; 
+    event.GetString("weapon", weaponName, MAX_STR_LEN);
+    new Float:range = GetVectorDistance(eyePos, c);
+
+    PrintToChatAll("Weapon: %s | Range: %.2f", weaponName, range);
+
+    if (range > RANGE_MAX_ALL) {
+        return;
+
+    } else if (IsSmg(weaponName)) {
+        if (range > RANGE_SMG) return;
+        ApplyBulletToRock(rockIndex, rockEntity);
+        
+    } else if (IsPistol(weaponName)) {
+        if (range > RANGE_PISTOL) return;
+        ApplyBulletToRock(rockIndex, rockEntity);
+
+    } else if (IsMagnum(weaponName)) {
+        if (range > RANGE_MAGNUM) return;
+        CTankRock__Detonate(rockEntity);
+
+    } else if (IsShotgun(weaponName)) {
+        if (range > RANGE_SHOTGUN) return;
+        CTankRock__Detonate(rockEntity);
+
+    } else if (IsRifle(weaponName)) {
+        if (range > RANGE_RIFLE) return;
+        ApplyBulletToRock(rockIndex, rockEntity);
+
+    } else if (IsMelee(weaponName)) {
+        if (range > RANGE_MELEE) return;
+        CTankRock__Detonate(rockEntity);
+
+    } else if (IsSniper(weaponName)) {
+        if (range > RANGE_SNIPER) return;
+        CTankRock__Detonate(rockEntity);
+    }
+    
+}
+
+public void ApplyBulletToRock(rockIndex, rockEntity)
+{
+    new numBullets = rockEntitiesArray.Get(rockIndex, 2);
+    if (++numBullets >= NUM_BULLETS_ROCK) {
+        CTankRock__Detonate(rockEntity);
+    } else {
+        rockEntitiesArray.Set(rockIndex, numBullets, 2);
+    }
+}
+
+public bool IsPistol(const char[] weaponName)
+{
+    return StrEqual(weaponName, "pistol");
+}
+
+public bool IsMagnum(const char[] weaponName)
+{
+    return StrEqual("pistol_magnum", weaponName);
+}
+
+public bool IsShotgun(const char[] weaponName)
+{
+    return StrEqual(weaponName, "shotgun_chrome")
+        || StrEqual(weaponName, "shotgun_spas")
+        || StrEqual(weaponName, "autoshotgun")
+        || StrEqual(weaponName, "pumpshotgun");
+}
+
+public bool IsSmg(const char[] weaponName)
+{
+    return StrEqual(weaponName, "smg")
+        || StrEqual(weaponName, "smg_silenced")
+        || StrEqual(weaponName, "smg_mp5");
+}
+
+public bool IsRifle(const char[] weaponName)
+{
+    return StrEqual(weaponName, "rifle")
+        || StrEqual(weaponName, "rifle_ak47")
+        || StrEqual(weaponName, "rifle_desert")
+        || StrEqual(weaponName, "rifle_m60")
+        || StrEqual(weaponName, "rifle_sg552");
+}
+
+public bool IsMelee(const char[] weaponName)
+{
+    return StrEqual(weaponName, "chainsaw")
+        || StrEqual(weaponName, "melee");
+}
+
+public bool IsSniper(const char[] weaponName)
+{
+    return StrEqual(weaponName, "sniper_awp")
+        || StrEqual(weaponName, "sniper_military")
+        || StrEqual(weaponName, "sniper_scout");
 }
 
 /**
