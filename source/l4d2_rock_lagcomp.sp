@@ -30,7 +30,7 @@
  * in one bullet at or below the range of 200 units. Damage is scaled based on
  * distance with this formula:
  *
- * Final Damage = Damage / Range
+ * Final Damage = Damage / Distance
  *
  * ------------
  * Weapon Range
