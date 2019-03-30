@@ -30,7 +30,7 @@
  * in one bullet at or below the range of 200 units. Damage is scaled based on
  * distance with this formula:
  *
- * Final Damage = Damage / Distance
+ * Final Damage = Damage / Distance 
  *
  * ------------
  * Weapon Range
@@ -47,6 +47,13 @@
  * Author: Luckylock
  *
  * Testers & Feedback: Adam, Impulse, Ohzy, Presto, Elk
+ * 
+ * ----
+ * TODO
+ * ----
+ * - Incap cvars and for pistols / magnums damage / range.
+ * - Implement a rock initial godframe.
+ * - Implement a Melee Swing delay instead of it being an instant hitscan.
  */
 
 
@@ -108,7 +115,7 @@ new ConVar:cvarRangeSniper;
  * Block 0: Entity Index
  * Block 1: Array of x,y,z rock positions history where: 
  * (frame number) % MAX_HISTORY_FRAMES == (array index)
- * Block 2: Rock Health
+ * Block 2: Damage dealt to rock
  */
 new ArrayList:rockEntitiesArray;
 
@@ -117,16 +124,15 @@ public Plugin myinfo =
 	name = "L4D2 Tank Rock Lag Compensation",
 	author = "Luckylock",
 	description = "Provides lag compensation for tank rock entities",
-	version = "1.0",
+	version = "1.1",
 	url = "https://github.com/LuckyServ/"
 };
 
-// TODO: Incap dmg values, Godframes, Melee Swing delay
 public void OnPluginStart()
 {
     CreateConVar("sm_rock_hitbox", "1", "Toggle for rock custom hitbox damage", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_lagcomp", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
-    CreateConVar("sm_rock_health", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
+    CreateConVar("sm_rock_health", "1", "Rock health", FCVAR_NONE, true, 0.0, true, 1.0);
 
     CreateConVar("sm_rock_damage_pistol", "150", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
     CreateConVar("sm_rock_damage_magnum", "1000", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
@@ -188,7 +194,9 @@ public void OnEntityDestroyed(int entity)
 #if DEBUG
     PrintEntityLocation(entity);
 #endif
-    Array_RemoveRock(rockEntitiesArray, entity);
+    if (IsRock(entity)) {
+        Array_RemoveRock(rockEntitiesArray, entity);
+    }
 }
 
 public Action PreventDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype) {
@@ -292,7 +300,7 @@ public Action ProcessRockHitboxes(Event event, const char[] name,
     new String:buffer[MAX_STR_LEN];
     GetClientInfo(client, "cl_interp", buffer, MAX_STR_LEN);
     new Float:clientLerp = StringToFloat(buffer);
-    new Float:lagTime = GetClientLatency(client, NetFlow_Both) + clientLerp;
+    new Float:lagTime = !IsFakeClient(client) ? GetClientLatency(client, NetFlow_Both) + clientLerp : 0.0;
     new rollBackTick = LAG_COMP_ENABLED ? 
         GetGameTickCount() - RoundToNearest(lagTime / GetTickInterval()) : GetGameTickCount();
 
@@ -395,7 +403,7 @@ public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range)
     //PrintToChatAll("Rock health: %.2f", ROCK_HEALTH - rockDamage);
 
     if (rockDamage >= ROCK_HEALTH) {
-        CTankRock__Detonate(rockEntity);
+        CTankRock__Detonate(EntRefToEntIndex(rockEntity));
     } else {
         rockEntitiesArray.Set(rockIndex, rockDamage, 2);
     }
