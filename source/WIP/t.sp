@@ -17,20 +17,51 @@
 #define MAX_STR_LEN 100
 #define MAX_HISTORY_FRAMES 100
 #define LAG_COMP_ENABLED GetConVarInt(cvarRockTankLagComp)
-#define NUM_BULLETS_ROCK GetConVarInt(cvarNumBulletsRock)
+#define ROCK_HITBOX_ENABLED GetConVarInt(cvarRockHitbox)
 #define SPHERE_HITBOX_RADIUS float(30)
+#define ROCK_HEALTH GetConVarFloat(cvarRockHealth)
 
-#define RANGE_MAX_ALL 1500
-#define RANGE_PISTOL 750
-#define RANGE_MAGNUM 750
-#define RANGE_SHOTGUN 500
-#define RANGE_SMG 1000
-#define RANGE_RIFLE 1000
-#define RANGE_MELEE 50
-#define RANGE_SNIPER 1500
+#define DAMAGE_MAX_ALL_ float(10000)
+#define DAMAGE_PISTOL GetConVarFloat(cvarDamagePistol)
+#define DAMAGE_MAGNUM GetConVarFloat(cvarDamageMagnum)
+#define DAMAGE_SHOTGUN GetConVarFloat(cvarDamageShotgun)
+#define DAMAGE_SMG GetConVarFloat(cvarDamageSmg)
+#define DAMAGE_RIFLE GetConVarFloat(cvarDamageRifle)
+#define DAMAGE_MELEE GetConVarFloat(cvarDamageMelee)
+#define DAMAGE_SNIPER GetConVarFloat(cvarDamageSniper)
 
-new Handle:cvarRockTankLagComp;
-new Handle:cvarNumBulletsRock;
+#define RANGE_MAX_ALL_ float(10000)
+#define RANGE_MAX_ALL GetConVarFloat(cvarRangeMaxAll)
+#define RANGE_MIN_ALL GetConVarFloat(cvarRangeMinAll)
+#define RANGE_PISTOL GetConVarFloat(cvarRangePistol)
+#define RANGE_MAGNUM GetConVarFloat(cvarRangeMagnum)
+#define RANGE_SHOTGUN GetConVarFloat(cvarRangeShotgun)
+#define RANGE_SMG GetConVarFloat(cvarRangeSmg)
+#define RANGE_RIFLE GetConVarFloat(cvarRangeRifle)
+#define RANGE_MELEE GetConVarFloat(cvarRangeMelee)
+#define RANGE_SNIPER GetConVarFloat(cvarRangeSniper)
+
+new ConVar:cvarRockHitbox;
+new ConVar:cvarRockTankLagComp;
+new ConVar:cvarRockHealth;
+
+new ConVar:cvarDamagePistol;
+new ConVar:cvarDamageMagnum;
+new ConVar:cvarDamageShotgun;
+new ConVar:cvarDamageSmg;
+new ConVar:cvarDamageRifle;
+new ConVar:cvarDamageMelee;
+new ConVar:cvarDamageSniper;
+
+new ConVar:cvarRangeMinAll;
+new ConVar:cvarRangeMaxAll;
+new ConVar:cvarRangePistol;
+new ConVar:cvarRangeMagnum;
+new ConVar:cvarRangeShotgun;
+new ConVar:cvarRangeSmg;
+new ConVar:cvarRangeRifle;
+new ConVar:cvarRangeMelee;
+new ConVar:cvarRangeSniper;
 
 /**
  * Block 0: Entity Index
@@ -49,14 +80,53 @@ public Plugin myinfo =
 	url = "https://github.com/LuckyServ/"
 };
 
+// TODO: Incap dmg values, Godframes, Melee Swing delay
 public void OnPluginStart()
 {
-//    RegConsoleCmd("sm_ray", ProcessRockHitboxes, "Destroy rock (lag compensated)");
+    CreateConVar("sm_rock_hitbox", "1", "Toggle for rock custom hitbox damage", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_lagcomp", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
-    CreateConVar("sm_rock_num_bullets", "3", "Number of smg, rifle or pistol bullets needed to kill a rock", FCVAR_NONE, true, 0.0, true, 100.0);
+    CreateConVar("sm_rock_health", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
 
+    CreateConVar("sm_rock_damage_pistol", "150", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
+    CreateConVar("sm_rock_damage_magnum", "1000", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
+    CreateConVar("sm_rock_damage_shotgun", "600", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
+    CreateConVar("sm_rock_damage_smg", "75", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
+    CreateConVar("sm_rock_damage_rifle", "200", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
+    CreateConVar("sm_rock_damage_melee", "1000", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
+    CreateConVar("sm_rock_damage_sniper", "10000", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
+
+    CreateConVar("sm_rock_range_min_all", "1", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
+    CreateConVar("sm_rock_range_max_all", "2000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
+    CreateConVar("sm_rock_range_pistol", "2000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
+    CreateConVar("sm_rock_range_magnum", "2000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
+    CreateConVar("sm_rock_range_shotgun", "1000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
+    CreateConVar("sm_rock_range_smg", "2000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
+    CreateConVar("sm_rock_range_rifle", "2000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
+    CreateConVar("sm_rock_range_melee", "200", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
+    CreateConVar("sm_rock_range_sniper", "10000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
+
+    cvarRockHitbox = FindConVar("sm_rock_hitbox");
     cvarRockTankLagComp = FindConVar("sm_rock_lagcomp"); 
-    cvarNumBulletsRock = FindConVar("sm_rock_num_bullets"); 
+    cvarRockHealth = FindConVar("sm_rock_health");
+
+    cvarDamagePistol = FindConVar("sm_rock_damage_pistol");
+    cvarDamageMagnum = FindConVar("sm_rock_damage_magnum");
+    cvarDamageShotgun = FindConVar("sm_rock_damage_shotgun");
+    cvarDamageSmg = FindConVar("sm_rock_damage_smg");
+    cvarDamageRifle = FindConVar("sm_rock_damage_rifle");
+    cvarDamageMelee = FindConVar("sm_rock_damage_melee");
+    cvarDamageSniper = FindConVar("sm_rock_damage_sniper");
+
+    cvarRangeMinAll = FindConVar("sm_rock_range_min_all");
+    cvarRangeMaxAll = FindConVar("sm_rock_range_max_all");
+    cvarRangePistol = FindConVar("sm_rock_range_pistol");
+    cvarRangeMagnum = FindConVar("sm_rock_range_magnum");
+    cvarRangeShotgun = FindConVar("sm_rock_range_shotgun");
+    cvarRangeSmg = FindConVar("sm_rock_range_smg");
+    cvarRangeRifle = FindConVar("sm_rock_range_rifle");
+    cvarRangeMelee = FindConVar("sm_rock_range_melee");
+    cvarRangeSniper = FindConVar("sm_rock_range_sniper");
+
     rockEntitiesArray = CreateArray(3);
     HookEvent("weapon_fire", ProcessRockHitboxes);
 }
@@ -81,8 +151,11 @@ public void OnEntityDestroyed(int entity)
 }
 
 public Action PreventDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype) {
-    damage = 0.0;
-    return Plugin_Handled;
+    if (ROCK_HITBOX_ENABLED) {
+        damage = 0.0;
+        return Plugin_Handled;
+    }
+    return Plugin_Continue;
 }
 
 public void OnGameFrame()
@@ -115,7 +188,7 @@ public void Array_AddNewRock(ArrayList array, int entity)
 {
     new index = array.Push(EntIndexToEntRef(entity));
     array.Set(index, CreateArray(3, MAX_HISTORY_FRAMES), 1);
-    array.Set(index, 0, 2);
+    array.Set(index, 0.0, 2);
 }
 
 /**
@@ -207,7 +280,7 @@ public Action ProcessRockHitboxes(Event event, const char[] name,
     new entity;
     new index = rollBackTick % MAX_HISTORY_FRAMES;
 
-    PrintToChatAll("%d - %d = %d", GetGameTickCount(), rollBackTick, GetGameTickCount() - rollBackTick);
+    //PrintToChatAll("%d - %d = %d", GetGameTickCount(), rollBackTick, GetGameTickCount() - rollBackTick);
 
     for (int i = 0; i < rockEntitiesArray.Length; ++i) {
 
@@ -239,47 +312,51 @@ rockEntity)
 
     PrintToChatAll("Weapon: %s | Range: %.2f", weaponName, range);
 
-    if (range > RANGE_MAX_ALL) {
+    if ((!ROCK_HITBOX_ENABLED) || range > RANGE_MAX_ALL || (range < RANGE_MIN_ALL && !IsMelee(weaponName))) {
         return;
 
     } else if (IsSmg(weaponName)) {
         if (range > RANGE_SMG) return;
-        ApplyBulletToRock(rockIndex, rockEntity);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SMG, range);
         
     } else if (IsPistol(weaponName)) {
         if (range > RANGE_PISTOL) return;
-        ApplyBulletToRock(rockIndex, rockEntity);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_PISTOL, range);
 
     } else if (IsMagnum(weaponName)) {
         if (range > RANGE_MAGNUM) return;
-        CTankRock__Detonate(rockEntity);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MAGNUM, range);
 
     } else if (IsShotgun(weaponName)) {
         if (range > RANGE_SHOTGUN) return;
-        CTankRock__Detonate(rockEntity);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SHOTGUN, range);
 
     } else if (IsRifle(weaponName)) {
         if (range > RANGE_RIFLE) return;
-        ApplyBulletToRock(rockIndex, rockEntity);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_RIFLE, range);
 
     } else if (IsMelee(weaponName)) {
         if (range > RANGE_MELEE) return;
-        CTankRock__Detonate(rockEntity);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MELEE, range);
 
     } else if (IsSniper(weaponName)) {
         if (range > RANGE_SNIPER) return;
-        CTankRock__Detonate(rockEntity);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SNIPER, range);
     }
     
 }
 
-public void ApplyBulletToRock(rockIndex, rockEntity)
+public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range)
 {
-    new numBullets = rockEntitiesArray.Get(rockIndex, 2);
-    if (++numBullets >= NUM_BULLETS_ROCK) {
+    new Float:rockDamage = rockEntitiesArray.Get(rockIndex, 2);
+    rockDamage += damage / range;
+
+    PrintToChatAll("Rock health: %.2f", ROCK_HEALTH - rockDamage);
+
+    if (rockDamage >= ROCK_HEALTH) {
         CTankRock__Detonate(rockEntity);
     } else {
-        rockEntitiesArray.Set(rockIndex, numBullets, 2);
+        rockEntitiesArray.Set(rockIndex, rockDamage, 2);
     }
 }
 
