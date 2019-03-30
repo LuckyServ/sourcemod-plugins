@@ -68,13 +68,6 @@ public Action:cheatcommand(client, args)
 	if (GetUserFlagBits(client)&ReadFlagString(access) > 0 || GetUserFlagBits(client)&ADMFLAG_ROOT > 0)
 	{
 		LogClient(client,"ran cheat command '%s'",argstring);
-		for (new i=1;i<MaxClients;i++)
-		{
-			if (IsClientConnected(i) && IsClientInGame(i) && !IsFakeClient(i))
-			{
-				PrintToConsole(i,"%s <%s> ran cheat command '%s'",argstring);
-			}
-		}
 		return Plugin_Continue;
 	}
 	LogClient(client,"was prevented from running cheat command '%s'",argstring);
