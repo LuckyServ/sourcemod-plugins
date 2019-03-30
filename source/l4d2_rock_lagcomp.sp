@@ -46,7 +46,7 @@
  * 
  * Author: Luckylock
  *
- * Testers & Feedback: Adam, Impulse, Ohzy, Presto, Elk
+ * Testers & Feedback: Adam, Impulse, Ohzy, Presto, Elk, Noc
  * 
  * ----
  * TODO
@@ -364,7 +364,7 @@ rockEntity)
     event.GetString("weapon", weaponName, MAX_STR_LEN);
     new Float:range = GetVectorDistance(eyePos, c);
 
-    PrintToChatAll("Weapon: %s | Range: %.2f", weaponName, range);
+    //PrintToChatAll("Weapon: %s | Range: %.2f", weaponName, range);
 
     if ((!ROCK_HITBOX_ENABLED) || range > RANGE_MAX_ALL || (range < RANGE_MIN_ALL && !IsMelee(weaponName))) {
         return;
@@ -405,7 +405,7 @@ public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range)
     new Float:rockDamage = rockEntitiesArray.Get(rockIndex, 2);
     rockDamage += damage / range;
 
-    PrintToChatAll("Rock health: %.2f", ROCK_HEALTH - rockDamage);
+    //PrintToChatAll("Rock health: %.2f", ROCK_HEALTH - rockDamage);
 
     if (rockDamage >= ROCK_HEALTH) {
         CTankRock__Detonate(EntRefToEntIndex(rockEntity));
