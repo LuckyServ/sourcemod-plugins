@@ -141,7 +141,7 @@ public void OnPluginStart()
     CreateConVar("sm_rock_hitbox", "1", "Toggle for rock custom hitbox damage", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_lagcomp", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_health", "1", "Rock health", FCVAR_NONE, true, 0.0, true, 1.0);
-    CreateConVar("sm_rock_hitbox_radius", "30", "Rock hitbox radius", FCVAR_NONE, true, 0.0, true, 1.0);
+    CreateConVar("sm_rock_hitbox_radius", "30", "Rock hitbox radius", FCVAR_NONE, true, 0.0, true, 10000.0);
 
     CreateConVar("sm_rock_damage_pistol", "75", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
     CreateConVar("sm_rock_damage_magnum", "1000", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
