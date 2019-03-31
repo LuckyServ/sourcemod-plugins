@@ -61,18 +61,18 @@
  * - Make throwables kill the rock.
  */
 
-
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 
-#define DEBUG 0
 #define MAX_STR_LEN 100
 #define MAX_HISTORY_FRAMES 100
-#define LAG_COMP_ENABLED GetConVarInt(cvarRockTankLagComp)
+
+#define ROCK_PRINT GetConVarInt(cvarRockPrint)
 #define ROCK_HITBOX_ENABLED GetConVarInt(cvarRockHitbox)
-#define SPHERE_HITBOX_RADIUS float(30)
+#define LAG_COMP_ENABLED GetConVarInt(cvarRockTankLagComp)
 #define ROCK_HEALTH GetConVarFloat(cvarRockHealth)
+#define SPHERE_HITBOX_RADIUS GetConVarFloat(cvarRockHitboxRadius)
 
 #define DAMAGE_MAX_ALL_ float(10000)
 #define DAMAGE_PISTOL GetConVarFloat(cvarDamagePistol)
@@ -94,9 +94,11 @@
 #define RANGE_MELEE GetConVarFloat(cvarRangeMelee)
 #define RANGE_SNIPER GetConVarFloat(cvarRangeSniper)
 
+new ConVar:cvarRockPrint;
 new ConVar:cvarRockHitbox;
 new ConVar:cvarRockTankLagComp;
 new ConVar:cvarRockHealth;
+new ConVar:cvarRockHitboxRadius;
 
 new ConVar:cvarDamagePistol;
 new ConVar:cvarDamageMagnum;
@@ -129,15 +131,17 @@ public Plugin myinfo =
 	name = "L4D2 Tank Rock Lag Compensation",
 	author = "Luckylock",
 	description = "Provides lag compensation for tank rock entities",
-	version = "1.1",
+	version = "1.2",
 	url = "https://github.com/LuckyServ/"
 };
 
 public void OnPluginStart()
 {
+    CreateConVar("sm_rock_print", "0", "Toggle printing of rock damage and range values", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_hitbox", "1", "Toggle for rock custom hitbox damage", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_lagcomp", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_health", "1", "Rock health", FCVAR_NONE, true, 0.0, true, 1.0);
+    CreateConVar("sm_rock_hitbox_radius", "30", "Rock hitbox radius", FCVAR_NONE, true, 0.0, true, 1.0);
 
     CreateConVar("sm_rock_damage_pistol", "75", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
     CreateConVar("sm_rock_damage_magnum", "1000", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
@@ -157,9 +161,11 @@ public void OnPluginStart()
     CreateConVar("sm_rock_range_melee", "200", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
     CreateConVar("sm_rock_range_sniper", "10000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
 
+    cvarRockPrint = FindConVar("sm_rock_print");
     cvarRockHitbox = FindConVar("sm_rock_hitbox");
     cvarRockTankLagComp = FindConVar("sm_rock_lagcomp"); 
     cvarRockHealth = FindConVar("sm_rock_health");
+    cvarRockHitboxRadius = FindConVar("sm_rock_hitbox_radius");
 
     cvarDamagePistol = FindConVar("sm_rock_damage_pistol");
     cvarDamageMagnum = FindConVar("sm_rock_damage_magnum");
@@ -186,9 +192,6 @@ public void OnPluginStart()
 public void OnEntityCreated(int entity, const char[] classname)
 {
     if (IsRock(entity)) {
-#if DEBUG
-        PrintEntityLocation(entity);
-#endif
         Array_AddNewRock(rockEntitiesArray, entity);
         SDKHook(entity, SDKHook_OnTakeDamage, PreventDamage);
     }
@@ -196,9 +199,6 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 public void OnEntityDestroyed(int entity)
 {
-#if DEBUG
-    PrintEntityLocation(entity);
-#endif
     if (IsRock(entity)) {
         Array_RemoveRock(rockEntitiesArray, entity);
     }
@@ -261,7 +261,6 @@ public void Array_RemoveRock(ArrayList array, int entity)
         RemoveFromArray(array, index); 
     }
 }
-
 
 /**
  * Searches a rock in the array.
@@ -364,7 +363,9 @@ rockEntity)
     event.GetString("weapon", weaponName, MAX_STR_LEN);
     new Float:range = GetVectorDistance(eyePos, c);
 
-    //PrintToChatAll("Weapon: %s | Range: %.2f", weaponName, range);
+    if (ROCK_PRINT) {
+        PrintToChatAll("Weapon: %s | Range: %.2f", weaponName, range);
+    }
 
     if ((!ROCK_HITBOX_ENABLED) || range > RANGE_MAX_ALL || (range < RANGE_MIN_ALL && !IsMelee(weaponName))) {
         return;
@@ -404,8 +405,10 @@ public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range)
 {
     new Float:rockDamage = rockEntitiesArray.Get(rockIndex, 2);
     rockDamage += damage / range;
-
-    //PrintToChatAll("Rock health: %.2f", ROCK_HEALTH - rockDamage);
+    
+    if (ROCK_PRINT) {
+        PrintToChatAll("Rock health: %.2f", ROCK_HEALTH - rockDamage);
+    }
 
     if (rockDamage >= ROCK_HEALTH) {
         CTankRock__Detonate(EntRefToEntIndex(rockEntity));
