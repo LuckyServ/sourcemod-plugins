@@ -56,7 +56,6 @@
  *     at the server side origin vector.
  *
  * - Incap cvars for pistols / magnums damage / range.
- * - Implement a rock initial godframe time.
  * - Implement a Melee Swing delay instead of it being an instant hitscan.
  * - Make throwables kill the rock.
  */
@@ -64,6 +63,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
+#include <smlib>
 
 #define MAX_STR_LEN 100
 #define MAX_HISTORY_FRAMES 100
@@ -71,6 +71,7 @@
 #define ROCK_PRINT GetConVarInt(cvarRockPrint)
 #define ROCK_HITBOX_ENABLED GetConVarInt(cvarRockHitbox)
 #define LAG_COMP_ENABLED GetConVarInt(cvarRockTankLagComp)
+#define ROCK_GODFRAMES_ENABLED GetConVarInt(cvarRockGodframes)
 #define ROCK_HEALTH GetConVarFloat(cvarRockHealth)
 #define SPHERE_HITBOX_RADIUS GetConVarFloat(cvarRockHitboxRadius)
 
@@ -94,9 +95,15 @@
 #define RANGE_MELEE GetConVarFloat(cvarRangeMelee)
 #define RANGE_SNIPER GetConVarFloat(cvarRangeSniper)
 
+#define BLOCK_ENT_REF 0_
+#define BLOCK_POS_HISTORY 1
+#define BLOCK_DMG_DEALT 2
+#define BLOCK_ALLOW_DMG 3
+
 new ConVar:cvarRockPrint;
 new ConVar:cvarRockHitbox;
 new ConVar:cvarRockTankLagComp;
+new ConVar:cvarRockGodframes;
 new ConVar:cvarRockHealth;
 new ConVar:cvarRockHitboxRadius;
 
@@ -123,6 +130,7 @@ new ConVar:cvarRangeSniper;
  * Block 1: Array of x,y,z rock positions history where: 
  * (frame number) % MAX_HISTORY_FRAMES == (array index)
  * Block 2: Damage dealt to rock
+ * Block 3: Toggle for allow damage
  */
 new ArrayList:rockEntitiesArray;
 
@@ -131,15 +139,16 @@ public Plugin myinfo =
 	name = "L4D2 Tank Rock Lag Compensation",
 	author = "Luckylock",
 	description = "Provides lag compensation for tank rock entities",
-	version = "1.2",
+	version = "1.3",
 	url = "https://github.com/LuckyServ/"
 };
 
 public void OnPluginStart()
 {
     CreateConVar("sm_rock_print", "0", "Toggle printing of rock damage and range values", FCVAR_NONE, true, 0.0, true, 1.0);
-    CreateConVar("sm_rock_hitbox", "1", "Toggle for rock custom hitbox damage", FCVAR_NONE, true, 0.0, true, 1.0);
+    CreateConVar("sm_rock_hitbox", "1", "Toggle for rock custom hitbox", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_lagcomp", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
+    CreateConVar("sm_rock_godframes", "0", "Toggle godframes on rock", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_health", "1", "Rock health", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_hitbox_radius", "30", "Rock hitbox radius", FCVAR_NONE, true, 0.0, true, 10000.0);
 
@@ -164,6 +173,7 @@ public void OnPluginStart()
     cvarRockPrint = FindConVar("sm_rock_print");
     cvarRockHitbox = FindConVar("sm_rock_hitbox");
     cvarRockTankLagComp = FindConVar("sm_rock_lagcomp"); 
+    cvarRockGodframes = FindConVar("sm_rock_godframes"); 
     cvarRockHealth = FindConVar("sm_rock_health");
     cvarRockHitboxRadius = FindConVar("sm_rock_hitbox_radius");
 
@@ -185,7 +195,7 @@ public void OnPluginStart()
     cvarRangeMelee = FindConVar("sm_rock_range_melee");
     cvarRangeSniper = FindConVar("sm_rock_range_sniper");
 
-    rockEntitiesArray = CreateArray(3);
+    rockEntitiesArray = CreateArray(4);
     HookEvent("weapon_fire", ProcessRockHitboxes);
 }
 
@@ -206,9 +216,17 @@ public void OnEntityDestroyed(int entity)
 
 public Action PreventDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype) {
     if (ROCK_HITBOX_ENABLED) {
-        damage = 0.0;
-        return Plugin_Handled;
+        new rockIndex = Array_SearchRock(rockEntitiesArray, victim);
+
+        if (rockIndex >= 0 && rockEntitiesArray.Get(rockIndex, BLOCK_ALLOW_DMG)) {
+            rockEntitiesArray.Set(rockIndex, 0, BLOCK_ALLOW_DMG);
+            return Plugin_Continue;
+        } else {
+            damage = 0.0;
+            return Plugin_Handled;
+        }
     }
+
     return Plugin_Continue;
 }
 
@@ -219,9 +237,9 @@ public void OnGameFrame()
     new index = GetGameTickCount() % MAX_HISTORY_FRAMES; 
     
     for (int i = 0; i < rockEntitiesArray.Length; ++i) {
-        entity = rockEntitiesArray.Get(i,0); 
+        entity = rockEntitiesArray.Get(i, BLOCK_ENT_REF); 
         GetEntPropVector(EntRefToEntIndex(entity), Prop_Send, "m_vecOrigin", pos); 
-        new ArrayList:posArray = rockEntitiesArray.Get(i,1);
+        new ArrayList:posArray = rockEntitiesArray.Get(i, BLOCK_POS_HISTORY);
         posArray.Set(index, pos[0], 0);
         posArray.Set(index, pos[1], 1);
         posArray.Set(index, pos[2], 2);
@@ -241,8 +259,9 @@ public void OnGameFrame()
 public void Array_AddNewRock(ArrayList array, int entity)
 {
     new index = array.Push(EntIndexToEntRef(entity));
-    array.Set(index, CreateArray(3, MAX_HISTORY_FRAMES), 1);
-    array.Set(index, 0.0, 2);
+    array.Set(index, CreateArray(3, MAX_HISTORY_FRAMES), BLOCK_POS_HISTORY);
+    array.Set(index, 0.0, BLOCK_DMG_DEALT);
+    array.Set(index, 0, BLOCK_ALLOW_DMG);
 }
 
 /**
@@ -254,8 +273,9 @@ public void Array_AddNewRock(ArrayList array, int entity)
 public void Array_RemoveRock(ArrayList array, int entity)
 {
     new index = Array_SearchRock(array, entity);
+
     if (index >= 0) {
-        new ArrayList:rockPos = array.Get(index, 1);
+        new ArrayList:rockPos = array.Get(index, BLOCK_POS_HISTORY);
         rockPos.Clear();
         CloseHandle(rockPos)
         RemoveFromArray(array, index); 
@@ -275,7 +295,7 @@ public int Array_SearchRock(ArrayList array, entity)
     entity = EntIndexToEntRef(entity);
 
     for (int i = 0; i < array.Length; ++i) {
-        rockEntity = array.Get(i, 0);
+        rockEntity = array.Get(i, BLOCK_ENT_REF);
         if (rockEntity == entity) {
             return i;
         } 
@@ -296,6 +316,10 @@ public Action ProcessRockHitboxes(Event event, const char[] name,
     }
 
     new client = GetClientOfUserId(event.GetInt("userid"));
+
+    if (!IsSurvivor(client)) {
+        return Plugin_Handled;
+    }
 
     new Float:eyeAng[3];
     new Float:eyePos[3];
@@ -337,8 +361,8 @@ public Action ProcessRockHitboxes(Event event, const char[] name,
 
     for (int i = 0; i < rockEntitiesArray.Length; ++i) {
 
-        entity = rockEntitiesArray.Get(i,0); 
-        rockPositionsArray = rockEntitiesArray.Get(i,1);
+        entity = rockEntitiesArray.Get(i, BLOCK_ENT_REF); 
+        rockPositionsArray = rockEntitiesArray.Get(i, BLOCK_POS_HISTORY);
 
         c[0] = rockPositionsArray.Get(index, 0);
         c[1] = rockPositionsArray.Get(index, 1);
@@ -372,38 +396,39 @@ rockEntity)
 
     } else if (IsSmg(weaponName)) {
         if (range > RANGE_SMG) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SMG, range);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SMG, range, client);
         
     } else if (IsPistol(weaponName)) {
         if (range > RANGE_PISTOL) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_PISTOL, range);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_PISTOL, range, client);
 
     } else if (IsMagnum(weaponName)) {
         if (range > RANGE_MAGNUM) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MAGNUM, range);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MAGNUM, range, client);
 
     } else if (IsShotgun(weaponName)) {
         if (range > RANGE_SHOTGUN) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SHOTGUN, range);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SHOTGUN, range, client);
 
     } else if (IsRifle(weaponName)) {
         if (range > RANGE_RIFLE) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_RIFLE, range);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_RIFLE, range, client);
 
     } else if (IsMelee(weaponName)) {
         if (range > RANGE_MELEE) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MELEE, range);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MELEE, range, client);
 
     } else if (IsSniper(weaponName)) {
         if (range > RANGE_SNIPER) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SNIPER, range);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SNIPER, range, client);
     }
     
 }
 
-public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range)
+public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range,
+client)
 {
-    new Float:rockDamage = rockEntitiesArray.Get(rockIndex, 2);
+    new Float:rockDamage = rockEntitiesArray.Get(rockIndex, BLOCK_DMG_DEALT);
     rockDamage += damage / range;
     
     if (ROCK_PRINT) {
@@ -411,9 +436,15 @@ public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range)
     }
 
     if (rockDamage >= ROCK_HEALTH) {
-        CTankRock__Detonate(EntRefToEntIndex(rockEntity));
+
+        if (ROCK_GODFRAMES_ENABLED) {
+            rockEntitiesArray.Set(rockIndex, 1, BLOCK_ALLOW_DMG);
+            Entity_Hurt(rockEntity, 50, client, DMG_BULLET);
+        } else {
+            CTankRock__Detonate(rockEntity);   
+        }
     } else {
-        rockEntitiesArray.Set(rockIndex, rockDamage, 2);
+        rockEntitiesArray.Set(rockIndex, rockDamage, BLOCK_DMG_DEALT);
     }
 }
 
@@ -494,19 +525,21 @@ public bool IsRock(int entity)
 CTankRock__Detonate(rock)
 {
     static Handle:call = INVALID_HANDLE;
-    if (call == INVALID_HANDLE)
-    {
+
+    if (call == INVALID_HANDLE) {
         StartPrepSDKCall(SDKCall_Entity);
-        if (!PrepSDKCall_SetSignature(SDKLibrary_Server, "@_ZN9CTankRock8DetonateEv", 0))
-        {
+
+        if (!PrepSDKCall_SetSignature(SDKLibrary_Server, "@_ZN9CTankRock8DetonateEv", 0)) {
             return;
         }
+
         call = EndPrepSDKCall();
-        if (call == INVALID_HANDLE)
-        {
+
+        if (call == INVALID_HANDLE) {
             return;
         }
     }
+
     SDKCall(call, rock);
 }
 
@@ -517,4 +550,13 @@ CTankRock__Detonate(rock)
 public void Vector_Print(float[3] v)
 {
     PrintToChatAll("(%.2f, %.2f, %.2f)", v[0],v[1],v[2]);
+}
+
+/**
+ * Stocks
+ */
+
+bool:IsSurvivor(client)                                                         
+{                                                                               
+    return (client > 0 && client <= MaxClients && IsClientInGame(client) && GetClientTeam(client) == 2);
 }
