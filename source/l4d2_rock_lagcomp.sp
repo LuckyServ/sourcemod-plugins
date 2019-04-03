@@ -57,11 +57,12 @@
 #define MAX_STR_LEN 100
 #define MAX_HISTORY_FRAMES 100
 #define ROCK_HEALTH 100
+#define CURR_GAME_TIME RoundFloat(GetGameTime() * 1000)
 
 #define ROCK_PRINT GetConVarInt(cvarRockPrint)
 #define ROCK_HITBOX_ENABLED GetConVarInt(cvarRockHitbox)
 #define LAG_COMP_ENABLED GetConVarInt(cvarRockTankLagComp)
-#define ROCK_GODFRAMES_TIME GetConVarFloat(cvarRockGodframes)
+#define ROCK_GODFRAMES_TIME RoundFloat(GetConVarFloat(cvarRockGodframes) * 1000)
 #define SPHERE_HITBOX_RADIUS GetConVarFloat(cvarRockHitboxRadius)
 
 #define DAMAGE_MAX_ALL_ float(10000)
@@ -89,7 +90,7 @@
 #define BLOCK_ENT_REF 0_
 #define BLOCK_POS_HISTORY 1
 #define BLOCK_DMG_DEALT 2
-#define BLOCK_ALLOW_DMG 3
+#define BLOCK_START_TIME 3
 
 new ConVar:cvarRockPrint;
 new ConVar:cvarRockHitbox;
@@ -130,7 +131,7 @@ public Plugin myinfo =
 	name = "L4D2 Tank Rock Lag Compensation",
 	author = "Luckylock",
 	description = "Provides lag compensation for tank rock entities",
-	version = "1.7",
+	version = "1.8",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -203,7 +204,6 @@ public void OnEntityCreated(int entity, const char[] classname)
         entityRef = EntIndexToEntRef(entity);
         SDKHook(entityRef, SDKHook_OnTakeDamage, PreventDamage);
         Array_AddNewRock(rockEntitiesArray, entityRef);
-        CreateTimer(ROCK_GODFRAMES_TIME, Array_AllowDamage, entityRef);
     }
 }
 
@@ -215,20 +215,6 @@ public void OnEntityDestroyed(int entity)
     if (IsRock(entity)) {
         Array_RemoveRock(rockEntitiesArray, EntIndexToEntRef(entity));
     }
-}
-
-/*
- * Allows damage to be dealt to the rock (turn off godframes)
- */
-public Action Array_AllowDamage(Handle timer, rockEntity)
-{
-    new rockIndex = Array_SearchRock(rockEntitiesArray, rockEntity);
-
-    if (rockIndex >= 0) {
-        rockEntitiesArray.Set(rockIndex, 1, BLOCK_ALLOW_DMG);
-    }
-
-    return Plugin_Handled;
 }
 
 /*
@@ -262,6 +248,12 @@ public void OnGameFrame()
     }
 }
 
+public void Array_IncreaseTime(rockIndex, float time)
+{
+    new Float: oldTime = rockEntitiesArray.Get(rockIndex, BLOCK_START_TIME);
+    rockEntitiesArray.Set(rockIndex, oldTime + time, BLOCK_START_TIME);
+}
+
 /**
  * Array Methods
  */
@@ -277,7 +269,7 @@ public void Array_AddNewRock(ArrayList array, int entity)
     new index = array.Push(entity);
     array.Set(index, CreateArray(3, MAX_HISTORY_FRAMES), BLOCK_POS_HISTORY);
     array.Set(index, 0, BLOCK_DMG_DEALT);
-    array.Set(index, 0, BLOCK_ALLOW_DMG);
+    array.Set(index, CURR_GAME_TIME, BLOCK_START_TIME);
 }
 
 /**
@@ -322,7 +314,7 @@ public int Array_SearchRock(ArrayList array, rockEntity)
  */
 public bool Array_IsRockAllowedDmg(rockIndex)
 {
-    return rockEntitiesArray.Get(rockIndex, BLOCK_ALLOW_DMG);
+    return CURR_GAME_TIME - rockEntitiesArray.Get(rockIndex, BLOCK_START_TIME) >= ROCK_GODFRAMES_TIME;
 }
 
 /**
