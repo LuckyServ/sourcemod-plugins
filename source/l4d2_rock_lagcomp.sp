@@ -51,11 +51,7 @@
  * ----
  * TODO
  * ----
- * - Make rock detonate animation play for the client that kills the rock
- *     The rock detonate animation only plays when the survivor shoots the rock
- *     at the server side origin vector.
- *
- * - Incap cvars for pistols / magnums damage / range.
+ * - Implement an optional godframe time
  * - Implement a Melee Swing delay instead of it being an instant hitscan.
  * - Make throwables kill the rock.
  */
@@ -67,12 +63,12 @@
 
 #define MAX_STR_LEN 100
 #define MAX_HISTORY_FRAMES 100
+#define ROCK_HEALTH 100
 
 #define ROCK_PRINT GetConVarInt(cvarRockPrint)
 #define ROCK_HITBOX_ENABLED GetConVarInt(cvarRockHitbox)
 #define LAG_COMP_ENABLED GetConVarInt(cvarRockTankLagComp)
-#define ROCK_GODFRAMES_ENABLED GetConVarInt(cvarRockGodframes)
-#define ROCK_HEALTH GetConVarFloat(cvarRockHealth)
+//#define ROCK_GODFRAMES_TIME GetConVarFloat(cvarRockGodframes)
 #define SPHERE_HITBOX_RADIUS GetConVarFloat(cvarRockHitboxRadius)
 
 #define DAMAGE_MAX_ALL_ float(10000)
@@ -98,13 +94,11 @@
 #define BLOCK_ENT_REF 0_
 #define BLOCK_POS_HISTORY 1
 #define BLOCK_DMG_DEALT 2
-#define BLOCK_ALLOW_DMG 3
 
 new ConVar:cvarRockPrint;
 new ConVar:cvarRockHitbox;
 new ConVar:cvarRockTankLagComp;
-new ConVar:cvarRockGodframes;
-new ConVar:cvarRockHealth;
+//new ConVar:cvarRockGodframes;
 new ConVar:cvarRockHitboxRadius;
 
 new ConVar:cvarDamagePistol;
@@ -130,7 +124,6 @@ new ConVar:cvarRangeSniper;
  * Block 1: Array of x,y,z rock positions history where: 
  * (frame number) % MAX_HISTORY_FRAMES == (array index)
  * Block 2: Damage dealt to rock
- * Block 3: Toggle for allow damage
  */
 new ArrayList:rockEntitiesArray;
 
@@ -139,7 +132,7 @@ public Plugin myinfo =
 	name = "L4D2 Tank Rock Lag Compensation",
 	author = "Luckylock",
 	description = "Provides lag compensation for tank rock entities",
-	version = "1.3",
+	version = "1.4",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -148,8 +141,7 @@ public void OnPluginStart()
     CreateConVar("sm_rock_print", "0", "Toggle printing of rock damage and range values", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_hitbox", "1", "Toggle for rock custom hitbox", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_lagcomp", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
-    CreateConVar("sm_rock_godframes", "0", "Toggle godframes on rock", FCVAR_NONE, true, 0.0, true, 1.0);
-    CreateConVar("sm_rock_health", "1", "Rock health", FCVAR_NONE, true, 0.0, true, 1.0);
+//    CreateConVar("sm_rock_godframes", "0", "Godframe time for rock (not implemented)", FCVAR_NONE, true, 0.0, true, 10.0);
     CreateConVar("sm_rock_hitbox_radius", "30", "Rock hitbox radius", FCVAR_NONE, true, 0.0, true, 10000.0);
 
     CreateConVar("sm_rock_damage_pistol", "75", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
@@ -173,8 +165,7 @@ public void OnPluginStart()
     cvarRockPrint = FindConVar("sm_rock_print");
     cvarRockHitbox = FindConVar("sm_rock_hitbox");
     cvarRockTankLagComp = FindConVar("sm_rock_lagcomp"); 
-    cvarRockGodframes = FindConVar("sm_rock_godframes"); 
-    cvarRockHealth = FindConVar("sm_rock_health");
+//    cvarRockGodframes = FindConVar("sm_rock_godframes"); 
     cvarRockHitboxRadius = FindConVar("sm_rock_hitbox_radius");
 
     cvarDamagePistol = FindConVar("sm_rock_damage_pistol");
@@ -195,7 +186,7 @@ public void OnPluginStart()
     cvarRangeMelee = FindConVar("sm_rock_range_melee");
     cvarRangeSniper = FindConVar("sm_rock_range_sniper");
 
-    rockEntitiesArray = CreateArray(4);
+    rockEntitiesArray = CreateArray(3);
     HookEvent("weapon_fire", ProcessRockHitboxes);
 }
 
@@ -203,7 +194,6 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
     if (IsRock(entity)) {
         Array_AddNewRock(rockEntitiesArray, entity);
-        SDKHook(entity, SDKHook_OnTakeDamage, PreventDamage);
     }
 }
 
@@ -216,29 +206,22 @@ public void OnEntityDestroyed(int entity)
 
 public Action PreventDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype) {
     if (ROCK_HITBOX_ENABLED) {
-        new rockIndex = Array_SearchRock(rockEntitiesArray, victim);
-
-        if (rockIndex >= 0 && rockEntitiesArray.Get(rockIndex, BLOCK_ALLOW_DMG)) {
-            rockEntitiesArray.Set(rockIndex, 0, BLOCK_ALLOW_DMG);
-            return Plugin_Continue;
-        } else {
-            damage = 0.0;
-            return Plugin_Handled;
-        }
+        damage = 0.0;
+        return Plugin_Handled;
+    } else {
+        return Plugin_Continue;
     }
-
-    return Plugin_Continue;
 }
 
 public void OnGameFrame()
 {
     new Float:pos[3];
-    new entity;
+    new rockEntity;
     new index = GetGameTickCount() % MAX_HISTORY_FRAMES; 
-    
+
     for (int i = 0; i < rockEntitiesArray.Length; ++i) {
-        entity = rockEntitiesArray.Get(i, BLOCK_ENT_REF); 
-        GetEntPropVector(EntRefToEntIndex(entity), Prop_Send, "m_vecOrigin", pos); 
+        rockEntity = rockEntitiesArray.Get(i, BLOCK_ENT_REF); 
+        GetEntPropVector(EntRefToEntIndex(rockEntity), Prop_Send, "m_vecOrigin", pos); 
         new ArrayList:posArray = rockEntitiesArray.Get(i, BLOCK_POS_HISTORY);
         posArray.Set(index, pos[0], 0);
         posArray.Set(index, pos[1], 1);
@@ -260,8 +243,7 @@ public void Array_AddNewRock(ArrayList array, int entity)
 {
     new index = array.Push(EntIndexToEntRef(entity));
     array.Set(index, CreateArray(3, MAX_HISTORY_FRAMES), BLOCK_POS_HISTORY);
-    array.Set(index, 0.0, BLOCK_DMG_DEALT);
-    array.Set(index, 0, BLOCK_ALLOW_DMG);
+    array.Set(index, 0, BLOCK_DMG_DEALT);
 }
 
 /**
@@ -428,23 +410,19 @@ rockEntity)
 public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range,
 client)
 {
-    new Float:rockDamage = rockEntitiesArray.Get(rockIndex, BLOCK_DMG_DEALT);
-    rockDamage += damage / range;
-    
-    if (ROCK_PRINT) {
-        PrintToChatAll("Rock health: %.2f", ROCK_HEALTH - rockDamage);
+    new Float:rockDamage = float(rockEntitiesArray.Get(rockIndex, BLOCK_DMG_DEALT));
+    rockDamage += damage / range * 100;
+
+    if (RoundFloat(rockDamage) > ROCK_HEALTH) {
+        new DataPack:pack = CreateDataPack();
+        WritePackCell(pack, rockEntity);
+        RequestFrame(CTankRock__Detonate, pack);
+    } else {
+        rockEntitiesArray.Set(rockIndex, RoundFloat(rockDamage), BLOCK_DMG_DEALT);
     }
 
-    if (rockDamage >= ROCK_HEALTH) {
-
-        if (ROCK_GODFRAMES_ENABLED) {
-            rockEntitiesArray.Set(rockIndex, 1, BLOCK_ALLOW_DMG);
-            Entity_Hurt(rockEntity, 50, client, DMG_BULLET);
-        } else {
-            CTankRock__Detonate(rockEntity);   
-        }
-    } else {
-        rockEntitiesArray.Set(rockIndex, rockDamage, BLOCK_DMG_DEALT);
+    if (ROCK_PRINT) {
+        PrintToChatAll("Rock health: %d\%", RoundFloat(ROCK_HEALTH - rockDamage));
     }
 }
 
@@ -522,8 +500,12 @@ public bool IsRock(int entity)
 }
 
 // Credits to Visor
-CTankRock__Detonate(rock)
+CTankRock__Detonate(any data)
 {
+    ResetPack(data, false);
+    new rock = ReadPackCell(data);
+    CloseHandle(data);
+
     static Handle:call = INVALID_HANDLE;
 
     if (call == INVALID_HANDLE) {
