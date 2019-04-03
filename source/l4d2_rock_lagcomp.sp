@@ -47,13 +47,6 @@
  * Author: Luckylock
  *
  * Testers & Feedback: Adam, Impulse, Ohzy, Presto, Elk, Noc
- * 
- * ----
- * TODO
- * ----
- * - Implement an optional godframe time
- * - Implement a Melee Swing delay instead of it being an instant hitscan.
- * - Make throwables kill the rock.
  */
 
 #include <sourcemod>
@@ -68,7 +61,7 @@
 #define ROCK_PRINT GetConVarInt(cvarRockPrint)
 #define ROCK_HITBOX_ENABLED GetConVarInt(cvarRockHitbox)
 #define LAG_COMP_ENABLED GetConVarInt(cvarRockTankLagComp)
-//#define ROCK_GODFRAMES_TIME GetConVarFloat(cvarRockGodframes)
+#define ROCK_GODFRAMES_TIME GetConVarFloat(cvarRockGodframes)
 #define SPHERE_HITBOX_RADIUS GetConVarFloat(cvarRockHitboxRadius)
 
 #define DAMAGE_MAX_ALL_ float(10000)
@@ -79,6 +72,7 @@
 #define DAMAGE_RIFLE GetConVarFloat(cvarDamageRifle)
 #define DAMAGE_MELEE GetConVarFloat(cvarDamageMelee)
 #define DAMAGE_SNIPER GetConVarFloat(cvarDamageSniper)
+#define DAMAGE_MINIGUN GetConVarFloat(cvarDamageMinigun)
 
 #define RANGE_MAX_ALL_ float(10000)
 #define RANGE_MAX_ALL GetConVarFloat(cvarRangeMaxAll)
@@ -90,6 +84,7 @@
 #define RANGE_RIFLE GetConVarFloat(cvarRangeRifle)
 #define RANGE_MELEE GetConVarFloat(cvarRangeMelee)
 #define RANGE_SNIPER GetConVarFloat(cvarRangeSniper)
+#define RANGE_MINIGUN GetConVarFloat(cvarRangeMinigun)
 
 #define BLOCK_ENT_REF 0_
 #define BLOCK_POS_HISTORY 1
@@ -98,7 +93,7 @@
 new ConVar:cvarRockPrint;
 new ConVar:cvarRockHitbox;
 new ConVar:cvarRockTankLagComp;
-//new ConVar:cvarRockGodframes;
+new ConVar:cvarRockGodframes;
 new ConVar:cvarRockHitboxRadius;
 
 new ConVar:cvarDamagePistol;
@@ -108,6 +103,7 @@ new ConVar:cvarDamageSmg;
 new ConVar:cvarDamageRifle;
 new ConVar:cvarDamageMelee;
 new ConVar:cvarDamageSniper;
+new ConVar:cvarDamageMinigun;
 
 new ConVar:cvarRangeMinAll;
 new ConVar:cvarRangeMaxAll;
@@ -118,6 +114,7 @@ new ConVar:cvarRangeSmg;
 new ConVar:cvarRangeRifle;
 new ConVar:cvarRangeMelee;
 new ConVar:cvarRangeSniper;
+new ConVar:cvarRangeMinigun;
 
 /**
  * Block 0: Entity Index
@@ -132,7 +129,7 @@ public Plugin myinfo =
 	name = "L4D2 Tank Rock Lag Compensation",
 	author = "Luckylock",
 	description = "Provides lag compensation for tank rock entities",
-	version = "1.4",
+	version = "1.6",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -141,7 +138,7 @@ public void OnPluginStart()
     CreateConVar("sm_rock_print", "0", "Toggle printing of rock damage and range values", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_hitbox", "1", "Toggle for rock custom hitbox", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_lagcomp", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
-//    CreateConVar("sm_rock_godframes", "0", "Godframe time for rock (not implemented)", FCVAR_NONE, true, 0.0, true, 10.0);
+    CreateConVar("sm_rock_godframes", "1.7", "Godframe time for rock (in seconds)", FCVAR_NONE, true, 0.0, true, 10.0);
     CreateConVar("sm_rock_hitbox_radius", "30", "Rock hitbox radius", FCVAR_NONE, true, 0.0, true, 10000.0);
 
     CreateConVar("sm_rock_damage_pistol", "75", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
@@ -151,6 +148,7 @@ public void OnPluginStart()
     CreateConVar("sm_rock_damage_rifle", "200", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
     CreateConVar("sm_rock_damage_melee", "1000", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
     CreateConVar("sm_rock_damage_sniper", "10000", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
+    CreateConVar("sm_rock_damage_minigun", "300", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
 
     CreateConVar("sm_rock_range_min_all", "1", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
     CreateConVar("sm_rock_range_max_all", "2000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
@@ -161,11 +159,12 @@ public void OnPluginStart()
     CreateConVar("sm_rock_range_rifle", "2000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
     CreateConVar("sm_rock_range_melee", "200", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
     CreateConVar("sm_rock_range_sniper", "10000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
+    CreateConVar("sm_rock_range_minigun", "2000", "Gun category range", FCVAR_NONE, true, 0.0, true, RANGE_MAX_ALL_);
 
     cvarRockPrint = FindConVar("sm_rock_print");
     cvarRockHitbox = FindConVar("sm_rock_hitbox");
     cvarRockTankLagComp = FindConVar("sm_rock_lagcomp"); 
-//    cvarRockGodframes = FindConVar("sm_rock_godframes"); 
+    cvarRockGodframes = FindConVar("sm_rock_godframes"); 
     cvarRockHitboxRadius = FindConVar("sm_rock_hitbox_radius");
 
     cvarDamagePistol = FindConVar("sm_rock_damage_pistol");
@@ -175,6 +174,7 @@ public void OnPluginStart()
     cvarDamageRifle = FindConVar("sm_rock_damage_rifle");
     cvarDamageMelee = FindConVar("sm_rock_damage_melee");
     cvarDamageSniper = FindConVar("sm_rock_damage_sniper");
+    cvarDamageMinigun = FindConVar("sm_rock_damage_minigun");
 
     cvarRangeMinAll = FindConVar("sm_rock_range_min_all");
     cvarRangeMaxAll = FindConVar("sm_rock_range_max_all");
@@ -185,6 +185,7 @@ public void OnPluginStart()
     cvarRangeRifle = FindConVar("sm_rock_range_rifle");
     cvarRangeMelee = FindConVar("sm_rock_range_melee");
     cvarRangeSniper = FindConVar("sm_rock_range_sniper");
+    cvarRangeMinigun = FindConVar("sm_rock_range_minigun");
 
     rockEntitiesArray = CreateArray(3);
     HookEvent("weapon_fire", ProcessRockHitboxes);
@@ -193,7 +194,14 @@ public void OnPluginStart()
 public void OnEntityCreated(int entity, const char[] classname)
 {
     if (IsRock(entity)) {
-        Array_AddNewRock(rockEntitiesArray, entity);
+        SDKHook(entity, SDKHook_OnTakeDamage, PreventDamage);
+
+        if (ROCK_GODFRAMES_TIME > 0.0) {
+            CreateTimer(ROCK_GODFRAMES_TIME, OnEntityCreated_Delayed, EntIndexToEntRef(entity));
+        } else {
+            Array_AddNewRock(rockEntitiesArray, entity);
+        }
+
     }
 }
 
@@ -202,6 +210,15 @@ public void OnEntityDestroyed(int entity)
     if (IsRock(entity)) {
         Array_RemoveRock(rockEntitiesArray, entity);
     }
+}
+
+public Action OnEntityCreated_Delayed(Handle timer, rockEntity)
+{
+    if (IsRock(rockEntity)) {
+        Array_AddNewRock(rockEntitiesArray, rockEntity);
+    }
+
+    return Plugin_Handled;
 }
 
 public Action PreventDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype) {
@@ -241,7 +258,7 @@ public void OnGameFrame()
  */
 public void Array_AddNewRock(ArrayList array, int entity)
 {
-    new index = array.Push(EntIndexToEntRef(entity));
+    new index = array.Push(entity);
     array.Set(index, CreateArray(3, MAX_HISTORY_FRAMES), BLOCK_POS_HISTORY);
     array.Set(index, 0, BLOCK_DMG_DEALT);
 }
@@ -378,45 +395,46 @@ rockEntity)
 
     } else if (IsSmg(weaponName)) {
         if (range > RANGE_SMG) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SMG, range, client);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SMG, range);
         
     } else if (IsPistol(weaponName)) {
         if (range > RANGE_PISTOL) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_PISTOL, range, client);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_PISTOL, range);
 
     } else if (IsMagnum(weaponName)) {
         if (range > RANGE_MAGNUM) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MAGNUM, range, client);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MAGNUM, range);
 
     } else if (IsShotgun(weaponName)) {
         if (range > RANGE_SHOTGUN) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SHOTGUN, range, client);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SHOTGUN, range);
 
     } else if (IsRifle(weaponName)) {
         if (range > RANGE_RIFLE) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_RIFLE, range, client);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_RIFLE, range);
 
     } else if (IsMelee(weaponName)) {
         if (range > RANGE_MELEE) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MELEE, range, client);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MELEE, range);
 
     } else if (IsSniper(weaponName)) {
         if (range > RANGE_SNIPER) return;
-        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SNIPER, range, client);
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_SNIPER, range);
+
+    } else if (IsMiniGun(weaponName)) {
+        if (range > RANGE_MINIGUN) return;
+        ApplyBulletToRock(rockIndex, rockEntity, DAMAGE_MINIGUN, range);
     }
     
 }
 
-public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range,
-client)
+public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range)
 {
     new Float:rockDamage = float(rockEntitiesArray.Get(rockIndex, BLOCK_DMG_DEALT));
     rockDamage += damage / range * 100;
 
     if (RoundFloat(rockDamage) > ROCK_HEALTH) {
-        new DataPack:pack = CreateDataPack();
-        WritePackCell(pack, rockEntity);
-        RequestFrame(CTankRock__Detonate, pack);
+        RequestFrame(CTankRock__Detonate, rockEntity);
     } else {
         rockEntitiesArray.Set(rockIndex, RoundFloat(rockDamage), BLOCK_DMG_DEALT);
     }
@@ -473,6 +491,13 @@ public bool IsSniper(const char[] weaponName)
         || StrEqual(weaponName, "sniper_scout");
 }
 
+public bool IsMiniGun(const char[] weaponName)
+{
+    return StrEqual(weaponName, "prop_minigun_l4d1")
+        || StrEqual(weaponName, "prop_minigun");
+
+}
+
 /**
  * Print Methods
  */
@@ -500,12 +525,8 @@ public bool IsRock(int entity)
 }
 
 // Credits to Visor
-CTankRock__Detonate(any data)
+CTankRock__Detonate(rock)
 {
-    ResetPack(data, false);
-    new rock = ReadPackCell(data);
-    CloseHandle(data);
-
     static Handle:call = INVALID_HANDLE;
 
     if (call == INVALID_HANDLE) {
