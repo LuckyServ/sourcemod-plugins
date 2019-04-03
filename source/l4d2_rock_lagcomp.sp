@@ -89,6 +89,7 @@
 #define BLOCK_ENT_REF 0_
 #define BLOCK_POS_HISTORY 1
 #define BLOCK_DMG_DEALT 2
+#define BLOCK_ALLOW_DMG 3
 
 new ConVar:cvarRockPrint;
 new ConVar:cvarRockHitbox;
@@ -129,7 +130,7 @@ public Plugin myinfo =
 	name = "L4D2 Tank Rock Lag Compensation",
 	author = "Luckylock",
 	description = "Provides lag compensation for tank rock entities",
-	version = "1.6",
+	version = "1.7",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -187,40 +188,52 @@ public void OnPluginStart()
     cvarRangeSniper = FindConVar("sm_rock_range_sniper");
     cvarRangeMinigun = FindConVar("sm_rock_range_minigun");
 
-    rockEntitiesArray = CreateArray(3);
+    rockEntitiesArray = CreateArray(4);
     HookEvent("weapon_fire", ProcessRockHitboxes);
 }
 
+/**
+ * Rock is created add it to the array to be tracked.
+ */
 public void OnEntityCreated(int entity, const char[] classname)
 {
+    new entityRef;
+
     if (IsRock(entity)) {
-        SDKHook(entity, SDKHook_OnTakeDamage, PreventDamage);
-
-        if (ROCK_GODFRAMES_TIME > 0.0) {
-            CreateTimer(ROCK_GODFRAMES_TIME, OnEntityCreated_Delayed, EntIndexToEntRef(entity));
-        } else {
-            Array_AddNewRock(rockEntitiesArray, entity);
-        }
-
+        entityRef = EntIndexToEntRef(entity);
+        SDKHook(entityRef, SDKHook_OnTakeDamage, PreventDamage);
+        Array_AddNewRock(rockEntitiesArray, entityRef);
+        CreateTimer(ROCK_GODFRAMES_TIME, Array_AllowDamage, entityRef);
     }
 }
 
+/*
+ * Rock is destroyed, remove it from the array.
+ */
 public void OnEntityDestroyed(int entity)
 {
     if (IsRock(entity)) {
-        Array_RemoveRock(rockEntitiesArray, entity);
+        Array_RemoveRock(rockEntitiesArray, EntIndexToEntRef(entity));
     }
 }
 
-public Action OnEntityCreated_Delayed(Handle timer, rockEntity)
+/*
+ * Allows damage to be dealt to the rock (turn off godframes)
+ */
+public Action Array_AllowDamage(Handle timer, rockEntity)
 {
-    if (IsRock(rockEntity)) {
-        Array_AddNewRock(rockEntitiesArray, rockEntity);
+    new rockIndex = Array_SearchRock(rockEntitiesArray, rockEntity);
+
+    if (rockIndex >= 0) {
+        rockEntitiesArray.Set(rockIndex, 1, BLOCK_ALLOW_DMG);
     }
 
     return Plugin_Handled;
 }
 
+/*
+ * Turn off all damage dealt to the rock, since we're using a custom hitbox.
+ */ 
 public Action PreventDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype) {
     if (ROCK_HITBOX_ENABLED) {
         damage = 0.0;
@@ -230,6 +243,9 @@ public Action PreventDamage(int victim, int& attacker, int& inflictor, float& da
     }
 }
 
+/*
+ * Tracking origin vector of every rock for every frame (for rollback).
+ */
 public void OnGameFrame()
 {
     new Float:pos[3];
@@ -238,7 +254,7 @@ public void OnGameFrame()
 
     for (int i = 0; i < rockEntitiesArray.Length; ++i) {
         rockEntity = rockEntitiesArray.Get(i, BLOCK_ENT_REF); 
-        GetEntPropVector(EntRefToEntIndex(rockEntity), Prop_Send, "m_vecOrigin", pos); 
+        GetEntPropVector(rockEntity, Prop_Send, "m_vecOrigin", pos); 
         new ArrayList:posArray = rockEntitiesArray.Get(i, BLOCK_POS_HISTORY);
         posArray.Set(index, pos[0], 0);
         posArray.Set(index, pos[1], 1);
@@ -261,6 +277,7 @@ public void Array_AddNewRock(ArrayList array, int entity)
     new index = array.Push(entity);
     array.Set(index, CreateArray(3, MAX_HISTORY_FRAMES), BLOCK_POS_HISTORY);
     array.Set(index, 0, BLOCK_DMG_DEALT);
+    array.Set(index, 0, BLOCK_ALLOW_DMG);
 }
 
 /**
@@ -269,15 +286,15 @@ public void Array_AddNewRock(ArrayList array, int entity)
  * @param array array of rocks
  * @param entity entity index of the rock
  */
-public void Array_RemoveRock(ArrayList array, int entity)
+public void Array_RemoveRock(ArrayList array, int rockEntity)
 {
-    new index = Array_SearchRock(array, entity);
+    new rockIndex = Array_SearchRock(array, rockEntity);
 
-    if (index >= 0) {
-        new ArrayList:rockPos = array.Get(index, BLOCK_POS_HISTORY);
+    if (rockIndex >= 0) {
+        new ArrayList:rockPos = array.Get(rockIndex, BLOCK_POS_HISTORY);
         rockPos.Clear();
         CloseHandle(rockPos)
-        RemoveFromArray(array, index); 
+        RemoveFromArray(array, rockIndex); 
     }
 }
 
@@ -288,14 +305,11 @@ public void Array_RemoveRock(ArrayList array, int entity)
  * @param entity entity index to search for
  * @return array index if found, -1 if not found.
  */
-public int Array_SearchRock(ArrayList array, entity)
+public int Array_SearchRock(ArrayList array, rockEntity)
 {
-    new rockEntity;
-    entity = EntIndexToEntRef(entity);
-
     for (int i = 0; i < array.Length; ++i) {
-        rockEntity = array.Get(i, BLOCK_ENT_REF);
-        if (rockEntity == entity) {
+        new cRockEntity = array.Get(i, BLOCK_ENT_REF);
+        if (rockEntity == cRockEntity) {
             return i;
         } 
     }
@@ -303,10 +317,22 @@ public int Array_SearchRock(ArrayList array, entity)
     return -1;
 }
 
+/*
+ * Checks if rock is allowed to be dealt damage.
+ */
+public bool Array_IsRockAllowedDmg(rockIndex)
+{
+    return rockEntitiesArray.Get(rockIndex, BLOCK_ALLOW_DMG);
+}
+
 /**
  * Ray Methods
  */
 
+/*
+ * Handles the weapon_fire event. Calculates a line-sphere intersection between
+ * the shooting survivors and the rock(s). Deals damages accordingly.
+ */
 public Action ProcessRockHitboxes(Event event, const char[] name, 
     bool dontBroadcast)
 {
@@ -355,30 +381,36 @@ public Action ProcessRockHitboxes(Event event, const char[] name,
     new ArrayList:rockPositionsArray;
     new entity;
     new index = rollBackTick % MAX_HISTORY_FRAMES;
+    new Float:delta;
 
     //PrintToChatAll("%d - %d = %d", GetGameTickCount(), rollBackTick, GetGameTickCount() - rollBackTick);
 
     for (int i = 0; i < rockEntitiesArray.Length; ++i) {
 
-        entity = rockEntitiesArray.Get(i, BLOCK_ENT_REF); 
-        rockPositionsArray = rockEntitiesArray.Get(i, BLOCK_POS_HISTORY);
+        if (Array_IsRockAllowedDmg(i)) {
+            entity = rockEntitiesArray.Get(i, BLOCK_ENT_REF); 
+            rockPositionsArray = rockEntitiesArray.Get(i, BLOCK_POS_HISTORY);
 
-        c[0] = rockPositionsArray.Get(index, 0);
-        c[1] = rockPositionsArray.Get(index, 1);
-        c[2] = rockPositionsArray.Get(index, 2);
-        SubtractVectors(o,c,o_Minus_c);
+            c[0] = rockPositionsArray.Get(index, 0);
+            c[1] = rockPositionsArray.Get(index, 1);
+            c[2] = rockPositionsArray.Get(index, 2);
+            SubtractVectors(o,c,o_Minus_c);
 
-        new Float:delta = GetVectorDotProduct(l, o_Minus_c) * GetVectorDotProduct(l, o_Minus_c) 
-            - GetVectorLength(o_Minus_c, true) + radius*radius;
+            delta = GetVectorDotProduct(l, o_Minus_c) * GetVectorDotProduct(l, o_Minus_c) 
+                - GetVectorLength(o_Minus_c, true) + radius*radius;
 
-        if (delta >= 0.0) {
-            ApplyDamageOnRock(i, client, eyePos, c, event, entity);
+            if (delta >= 0.0) {
+                ApplyDamageOnRock(i, client, eyePos, c, event, entity);
+            }
         }
     }
 
     return Plugin_Handled;
 }
 
+/*
+ * Apply damage on rock depending on weapon and distance.
+ */
 public void ApplyDamageOnRock(rockIndex, client, float[3] eyePos, float[3] c, Event event,
 rockEntity)
 {
@@ -428,6 +460,9 @@ rockEntity)
     
 }
 
+/*
+ * Applies a single bullet damage to a single rock.
+ */
 public void ApplyBulletToRock(rockIndex, rockEntity, float damage, float range)
 {
     new Float:rockDamage = float(rockEntitiesArray.Get(rockIndex, BLOCK_DMG_DEALT));
@@ -510,7 +545,7 @@ public void PrintEntityLocation(int entity)
         GetEntPropVector(entity, Prop_Send, "m_vecOrigin", position);
         GetEntityClassname(entity, classname, MAX_STR_LEN);
         PrintToChatAll("Entity %s (%d) is at location: (%.2f, %.2f, %.2f)",
-            classname, EntIndexToEntRef(entity), position[0], position[1], position[2]);
+            classname, entity, position[0], position[1], position[2]);
     }
 }
 
