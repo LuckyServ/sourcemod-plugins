@@ -87,7 +87,7 @@
 #define RANGE_SNIPER GetConVarFloat(cvarRangeSniper)
 #define RANGE_MINIGUN GetConVarFloat(cvarRangeMinigun)
 
-#define BLOCK_ENT_REF 0_
+#define BLOCK_ENT_REF 0
 #define BLOCK_POS_HISTORY 1
 #define BLOCK_DMG_DEALT 2
 #define BLOCK_START_TIME 3
