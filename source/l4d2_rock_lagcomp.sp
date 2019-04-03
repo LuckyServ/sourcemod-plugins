@@ -63,6 +63,7 @@
 #define ROCK_HITBOX_ENABLED GetConVarInt(cvarRockHitbox)
 #define LAG_COMP_ENABLED GetConVarInt(cvarRockTankLagComp)
 #define ROCK_GODFRAMES_TIME RoundFloat(GetConVarFloat(cvarRockGodframes) * 1000)
+#define ROCK_GODFRAMES_RENDER GetConVarInt(cvarRockGodframesRender)
 #define SPHERE_HITBOX_RADIUS GetConVarFloat(cvarRockHitboxRadius)
 
 #define DAMAGE_MAX_ALL_ float(10000)
@@ -96,6 +97,7 @@ new ConVar:cvarRockPrint;
 new ConVar:cvarRockHitbox;
 new ConVar:cvarRockTankLagComp;
 new ConVar:cvarRockGodframes;
+new ConVar:cvarRockGodframesRender;
 new ConVar:cvarRockHitboxRadius;
 
 new ConVar:cvarDamagePistol;
@@ -132,7 +134,7 @@ public Plugin myinfo =
 	name = "L4D2 Tank Rock Lag Compensation",
 	author = "Luckylock",
 	description = "Provides lag compensation for tank rock entities",
-	version = "1.8",
+	version = "1.9",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -142,6 +144,7 @@ public void OnPluginStart()
     CreateConVar("sm_rock_hitbox", "1", "Toggle for rock custom hitbox", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_lagcomp", "1", "Toggle for lag compensation", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_godframes", "1.7", "Godframe time for rock (in seconds)", FCVAR_NONE, true, 0.0, true, 10.0);
+    CreateConVar("sm_rock_godframes_render", "1", "Toggle visual godframes feedback", FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_rock_hitbox_radius", "30", "Rock hitbox radius", FCVAR_NONE, true, 0.0, true, 10000.0);
 
     CreateConVar("sm_rock_damage_pistol", "75", "Gun category damage", FCVAR_NONE, true, 0.0, true, DAMAGE_MAX_ALL_);
@@ -168,6 +171,7 @@ public void OnPluginStart()
     cvarRockHitbox = FindConVar("sm_rock_hitbox");
     cvarRockTankLagComp = FindConVar("sm_rock_lagcomp"); 
     cvarRockGodframes = FindConVar("sm_rock_godframes"); 
+    cvarRockGodframesRender = FindConVar("sm_rock_godframes_render");
     cvarRockHitboxRadius = FindConVar("sm_rock_hitbox_radius");
 
     cvarDamagePistol = FindConVar("sm_rock_damage_pistol");
@@ -205,6 +209,11 @@ public void OnEntityCreated(int entity, const char[] classname)
         entityRef = EntIndexToEntRef(entity);
         SDKHook(entityRef, SDKHook_OnTakeDamage, PreventDamage);
         Array_AddNewRock(rockEntitiesArray, entityRef);
+
+        if (ROCK_GODFRAMES_RENDER) {
+            SetEntityRenderMode(entityRef, RenderMode:3);
+            SetEntityRenderColor(entityRef, 255, 0, 0, 200);
+        }
     }
 }
 
@@ -246,6 +255,10 @@ public void OnGameFrame()
         posArray.Set(index, pos[0], 0);
         posArray.Set(index, pos[1], 1);
         posArray.Set(index, pos[2], 2);
+        if (ROCK_GODFRAMES_RENDER && Array_IsRockAllowedDmg(i)) {
+            SetEntityRenderMode(rockEntity, RenderMode:0);
+            SetEntityRenderColor(rockEntity, 255, 255, 255, 255);
+        }
     }
 }
 
