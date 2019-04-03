@@ -119,10 +119,11 @@ new ConVar:cvarRangeSniper;
 new ConVar:cvarRangeMinigun;
 
 /**
- * Block 0: Entity Index
- * Block 1: Array of x,y,z rock positions history where: 
+ * Block BLOCK_ENT_REF: Entity Index
+ * Block BLOCK_POS_HISTORY: Array of x,y,z rock positions history where: 
  * (frame number) % MAX_HISTORY_FRAMES == (array index)
- * Block 2: Damage dealt to rock
+ * Block BLOCK_DMG_DEAL: Damage dealt to rock
+ * Block BLOCK_START_TIME: Entry time of the rock (for godframes)
  */
 new ArrayList:rockEntitiesArray;
 
@@ -246,12 +247,6 @@ public void OnGameFrame()
         posArray.Set(index, pos[1], 1);
         posArray.Set(index, pos[2], 2);
     }
-}
-
-public void Array_IncreaseTime(rockIndex, float time)
-{
-    new Float: oldTime = rockEntitiesArray.Get(rockIndex, BLOCK_START_TIME);
-    rockEntitiesArray.Set(rockIndex, oldTime + time, BLOCK_START_TIME);
 }
 
 /**
