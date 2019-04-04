@@ -133,7 +133,7 @@ new ArrayList:rockEntitiesArray;
 
 public Plugin myinfo =
 {
-    name = "L4D2 Tank Rock Lag Compensation",
+    name = "L4D Tank Rock Lag Compensation",
     author = "Luckylock",
     description = "Provides lag compensation for tank rock entities",
     version = "1.10",
