@@ -212,7 +212,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 
         if (ROCK_GODFRAMES_RENDER) {
             SetEntityRenderMode(entityRef, RenderMode:3);
-            SetEntityRenderColor(entityRef, 255, 0, 0, 200);
+            SetEntityRenderColor(entityRef, 255, 255, 255, 200);
         }
     }
 }
