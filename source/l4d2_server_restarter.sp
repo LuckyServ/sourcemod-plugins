@@ -1,13 +1,15 @@
 #include <sourcemod>
 
 new bool:isFirstMapStart = true;
+new bool:isSwitchingMaps = true;
+new bool:startedTimer = false;
  
 public Plugin myinfo =
 {
 	name = "L4D2 Server Restarter",
 	author = "Luckylock",
 	description = "Restarts server automatically. Uses the built-in restart of srcds_run",
-	version = "1.8",
+	version = "1.9",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -37,17 +39,35 @@ public Action KickClientsAndRestartServer(int client, int args)
 
 public void OnMapStart()
 {
-    if(!isFirstMapStart) {
-        CreateTimer(30.0, CrashIfNoHumans, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE); 
+    CreateTimer(30.0, SwitchedMap);
+
+    if(!isFirstMapStart && !startedTimer) {
+        CreateTimer(30.0, CrashIfNoHumans, _, TIMER_REPEAT); 
+        startedTimer = true;
     }
+
     isFirstMapStart = false;
+}
+
+public void OnMapEnd()
+{
+    isSwitchingMaps = true;
+}
+
+public Action SwitchedMap(Handle timer)
+{
+    isSwitchingMaps = false;
+
+    return Plugin_Stop;
 }
 
 public Action CrashIfNoHumans(Handle timer) 
 {
-    if (!HumanFound()) {
+    if (!isSwitchingMaps && !HumanFound()) {
         CrashServer();
     }
+
+    return Plugin_Continue;
 }
 
 public bool HumanFound() 
