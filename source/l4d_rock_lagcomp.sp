@@ -329,7 +329,7 @@ public Action ProcessRockHitboxes(Event event, const char[] name,
     // Rollback rock position
     new String:buffer[MAX_STR_LEN];
     GetClientInfo(client, "cl_interp", buffer, MAX_STR_LEN);
-    new Float:clientLerp = Clamp(StringToFloat(buffer), 0.0, 100.0);
+    new Float:clientLerp = Clamp(StringToFloat(buffer), 0.0, 0.5);
     new Float:lagTime = !IsFakeClient(client) ? GetClientLatency(client, NetFlow_Both) + clientLerp : 0.0;
     new rollBackTick = LAG_COMP_ENABLED ? 
     GetGameTickCount() - RoundToNearest(lagTime / GetTickInterval()) : GetGameTickCount();
