@@ -63,6 +63,8 @@ public Action SwitchedMap(Handle timer)
 {
     isSwitchingMaps = false;
 
+    switchMapTimer = INVALID_HANDLE;
+
     return Plugin_Stop;
 }
 
