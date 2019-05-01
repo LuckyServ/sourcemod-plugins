@@ -3,13 +3,14 @@
 new bool:isFirstMapStart = true;
 new bool:isSwitchingMaps = true;
 new bool:startedTimer = false;
+new Handle:switchMapTimer = INVALID_HANDLE;
  
 public Plugin myinfo =
 {
 	name = "L4D2 Server Restarter",
 	author = "Luckylock",
 	description = "Restarts server automatically. Uses the built-in restart of srcds_run",
-	version = "1.9",
+	version = "2.0",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -30,7 +31,7 @@ public Action KickClientsAndRestartServer(int client, int args)
 {
     for (new i = 1; i <= MaxClients; ++i) {
         if (IsHuman(i)) {
-            KickClient(i, "Restarting"); 
+            KickClient(i, "go next"); 
         }
     }
 
@@ -39,12 +40,16 @@ public Action KickClientsAndRestartServer(int client, int args)
 
 public void OnMapStart()
 {
-    CreateTimer(30.0, SwitchedMap);
-
     if(!isFirstMapStart && !startedTimer) {
         CreateTimer(30.0, CrashIfNoHumans, _, TIMER_REPEAT); 
         startedTimer = true;
     }
+
+    if (switchMapTimer != INVALID_HANDLE) {
+        KillTimer(switchMapTimer);
+    }
+
+    switchMapTimer = CreateTimer(30.0, SwitchedMap);
 
     isFirstMapStart = false;
 }
