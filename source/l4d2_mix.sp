@@ -222,64 +222,44 @@ public void Menu_DisplayToAllSpecs()
 
 public int Menu_MixHandler(Menu menu, MenuAction action, int param1, int param2)
 {
-    switch(action) {
-        case MenuAction_Start: {
-        }
+    if (action == MenuAction_Select) {
+        if (currentState == STATE_FIRST_CAPT || currentState == STATE_SECOND_CAPT) {
+            char authId[MAX_STR_LEN];
+            menu.GetItem(param2, authId, MAX_STR_LEN);
 
-        case MenuAction_Display: {
-        }
+            new voteCount = 0;
 
-        case MenuAction_Select: {
-            if (currentState == STATE_FIRST_CAPT || currentState == STATE_SECOND_CAPT) {
-                char authId[MAX_STR_LEN];
-                menu.GetItem(param2, authId, MAX_STR_LEN);
+            if (!GetTrieValue(hVoteResultsTrie, authId, voteCount)) {
+                voteCount = 0;
+            }
 
-                new voteCount = 0;
+            SetTrieValue(hVoteResultsTrie, authId, ++voteCount, true);
 
-                if (!GetTrieValue(hVoteResultsTrie, authId, voteCount)) {
-                    voteCount = 0;
-                }
+            if (voteCount >= maxVoteCount) {
+                strcopy(currentMaxVotedCaptAuthId, MAX_STR_LEN, authId);
+                maxVoteCount = voteCount;
+            }
 
-                SetTrieValue(hVoteResultsTrie, authId, ++voteCount, true);
+        } else if (currentState == STATE_PICK_TEAMS) {
+            char authId[MAX_STR_LEN]; 
+            menu.GetItem(param2, authId, MAX_STR_LEN);
+            new L4D2Team:team = GetClientTeamEx(param1);
 
-                if (voteCount >= maxVoteCount) {
-                    strcopy(currentMaxVotedCaptAuthId, MAX_STR_LEN, authId);
-                    maxVoteCount = voteCount;
-                }
+            if (team == L4D2Team_Spectator || (team == L4D2Team_Infected && survivorsPick == 1) || (team == L4D2Team_Survivor && survivorsPick == 0)) {
+                PrintToChatAll("\x04Mix Manager: \x01Captain \x03%N \x01found in the wrong team, aborting...", param1);
+                StopMix();
 
-            } else if (currentState == STATE_PICK_TEAMS) {
-                char authId[MAX_STR_LEN]; 
-                menu.GetItem(param2, authId, MAX_STR_LEN);
-                new L4D2Team:team = GetClientTeamEx(param1);
-
-                if (team == L4D2Team_Spectator || (team == L4D2Team_Infected && survivorsPick == 1) || (team == L4D2Team_Survivor && survivorsPick == 0)) {
-                    PrintToChatAll("\x04Mix Manager: \x01Captain \x03%N \x01found in the wrong team, aborting...", param1);
-                    StopMix();
-
+            } else {
+                if (SwapPlayerToTeam(authId, team, 0)) {
+                    CreateTimer(0.5, Menu_StateHandler);
                 } else {
-                    if (SwapPlayerToTeam(authId, team, 0)) {
-                        CreateTimer(0.5, Menu_StateHandler);
-                    } else {
-                        PrintToChatAll("\x04Mix Manager: \x01The team member who was picked was not found, aborting...", param1);
-                        StopMix();
-                        
-                    }
+                    PrintToChatAll("\x04Mix Manager: \x01The team member who was picked was not found, aborting...", param1);
+                    StopMix();
+                    
                 }
             }
         }
-
-        case MenuAction_Cancel: {
-        }
-
-        case MenuAction_End: {
-        }
-
-        case MenuAction_DrawItem: {
-        }
-
-        case MenuAction_DisplayItem: {
-        }
-    } 
+    }
 
     return 0;
 }
