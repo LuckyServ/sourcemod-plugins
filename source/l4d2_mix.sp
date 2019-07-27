@@ -235,7 +235,7 @@ public int Menu_MixHandler(Menu menu, MenuAction action, int param1, int param2)
 
             SetTrieValue(hVoteResultsTrie, authId, ++voteCount, true);
 
-            if (voteCount >= maxVoteCount) {
+            if (voteCount > maxVoteCount) {
                 strcopy(currentMaxVotedCaptAuthId, MAX_STR_LEN, authId);
                 maxVoteCount = voteCount;
             }
