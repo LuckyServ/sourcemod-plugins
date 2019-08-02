@@ -116,11 +116,11 @@ public OnPluginStart()
 {
     RegConsoleCmd("sm_health", Cmd_ShowBonus, "Show current bonus");
 
-    CreateConVar("sm_perm_ratio", "0.7", "Permanent health to temporary health ratio", 
+    CreateConVar("sm_perm_ratio", "0.8", "Permanent health to temporary health ratio", 
         FCVAR_NONE, true, 0.0, true, 1.0);
     CreateConVar("sm_health_bonus_divisor", "200.0", "Health divisor to keep bonus at reasonable numbers",
         FCVAR_NONE, true, 1.0);
-    CreateConVar("sm_pain_pills_add_pool", "50", "How much temporary health pain pills add to the pool",
+    CreateConVar("sm_pain_pills_add_pool", "75", "How much temporary health pain pills add to the pool",
         FCVAR_NONE, true, 0.0);
 
     hCvarValveSurvivalBonus = FindConVar("vs_survival_bonus");
