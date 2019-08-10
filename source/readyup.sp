@@ -30,6 +30,7 @@ enum L4D2Team
 
 // Plugin Cvars
 new Handle:l4d_ready_disable_spawns;
+new Handle:l4d_ready_serv_name;
 new Handle:l4d_ready_cfg_name;
 new Handle:l4d_ready_survivor_freeze;
 new Handle:l4d_ready_max_players;
@@ -48,7 +49,7 @@ new Handle:z_max_player_zombies;
 
 new Handle:casterTrie;
 new Handle:liveForward;
-new Handle:menuPanel;
+new Panel:menuPanel;
 new Handle:readyCountdownTimer;
 new String:readyFooter[MAX_FOOTERS][MAX_FOOTER_LEN];
 new bool:hiddenPanel[MAXPLAYERS + 1];
@@ -59,6 +60,7 @@ new footerCounter = 0;
 new readyDelay;
 new bool:blockSecretSpam[MAXPLAYERS + 1];
 new String:liveSound[256];
+new Float:liveTime;
 
 new Handle:allowedCastersTrie;
 
@@ -88,6 +90,7 @@ public OnPluginStart()
 {
 	CreateConVar("l4d_ready_enabled", "1", "This cvar doesn't do anything, but if it is 0 the logger wont log this game.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	l4d_ready_cfg_name = CreateConVar("l4d_ready_cfg_name", "", "Configname to display on the ready-up panel", FCVAR_PLUGIN|FCVAR_PRINTABLEONLY);
+    l4d_ready_serv_name = FindConVar("sn_main_name");
 	l4d_ready_disable_spawns = CreateConVar("l4d_ready_disable_spawns", "0", "Prevent SI from having spawns during ready-up", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	l4d_ready_survivor_freeze = CreateConVar("l4d_ready_survivor_freeze", "1", "Freeze the survivors during ready-up.  When unfrozen they are unable to leave the saferoom but can move freely inside", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	l4d_ready_max_players = CreateConVar("l4d_ready_max_players", "12", "Maximum number of players to show on the ready-up panel.", FCVAR_PLUGIN, true, 0.0, true, MAXPLAYERS+1.0);
@@ -594,6 +597,7 @@ UpdatePanel()
 		}
 	}
 
+
 	new bufLen = strlen(readyBuffer);
 	if (bufLen != 0)
 	{
@@ -625,9 +629,20 @@ UpdatePanel()
 		DrawPanelText(menuPanel, specBuffer);
 	}
 
+	decl String:sHostName[128];
+	GetConVarString(l4d_ready_serv_name, sHostName, sizeof(sHostName));
+    Format(sHostName, sizeof(sHostName), "> %s", sHostName);
+    menuPanel.DrawText(sHostName);
+
 	decl String:cfgBuf[128];
 	GetConVarString(l4d_ready_cfg_name, cfgBuf, sizeof(cfgBuf));
-	DrawPanelText(menuPanel, cfgBuf);
+    Format(cfgBuf, sizeof(cfgBuf), "> %s", cfgBuf);
+    menuPanel.DrawText(cfgBuf);
+
+	decl String:timeBuf[128];
+    Format(timeBuf, sizeof(timeBuf), "> %02d:%02d", RoundToFloor((GetGameTime() - liveTime) / 60), RoundToFloor(GetGameTime() - liveTime) % 60);
+    menuPanel.DrawText(timeBuf);
+
 
 	for (new i = 0; i < MAX_FOOTERS; i++)
 	{
@@ -645,6 +660,8 @@ UpdatePanel()
 
 InitiateReadyUp()
 {
+    liveTime = GetGameTime();
+
 	for (new i = 0; i <= MAXPLAYERS; i++)
 	{
 		isPlayerReady[i] = false;
