@@ -21,10 +21,10 @@ if (( $# < 2 )); then
     echo "Usage: ./checkPlugin.sh <plugins optional directory> <config name 1> <config name 2> ..."
     echo
     echo "Possible <plugins optional directory>"
-    find ./addons/sourcemod/plugins/optional/ -maxdepth 1 -type d -printf '%f\n' | sort
+    find ./addons/sourcemod/plugins/optional/ -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort
     echo
     echo "Possible <config names>"
-    find ./cfg/cfgogl -maxdepth 1 -type d -printf '%f\n' | sort
+    find ./cfg/cfgogl -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort
     exit
 fi
 
