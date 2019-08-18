@@ -44,11 +44,6 @@
  * - Health divisor (defined by the cvar sm_health_bonus_divisor)
  * - Number of times the survivors have been incapacitated / killed.
  *
- * By default, pain pills in your inventory are worth the same in terms of temporary 
- * health pool as 50 temporary health. Eating them will not reduce your bonus until 
- * you bleed or unless you have more than 49 hp. This can be changed with the cvar 
- * sm_pain_pills_add_pool. 
- *
  * Survivor deaths have the same kind of penalty on the bonus as incaps.
  *
  * -------
