@@ -39,6 +39,7 @@ new Handle:l4d_ready_enable_sound;
 new Handle:l4d_ready_chuckle;
 new Handle:l4d_ready_live_sound;
 new Handle:l4d_ready_warp_team;
+new Handle:sv_infinite_primary_ammo;
 
 // Game Cvars
 new Handle:director_no_specials;
@@ -91,6 +92,10 @@ public OnPluginStart()
 	CreateConVar("l4d_ready_enabled", "1", "This cvar doesn't do anything, but if it is 0 the logger wont log this game.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	l4d_ready_cfg_name = CreateConVar("l4d_ready_cfg_name", "", "Configname to display on the ready-up panel", FCVAR_PLUGIN|FCVAR_PRINTABLEONLY);
     l4d_ready_serv_name = FindConVar("sn_main_name");
+    if (!l4d_ready_serv_name) {
+        l4d_ready_serv_name = FindConVar("hostname");
+    }
+    sv_infinite_primary_ammo = FindConVar("sv_infinite_primary_ammo");
 	l4d_ready_disable_spawns = CreateConVar("l4d_ready_disable_spawns", "0", "Prevent SI from having spawns during ready-up", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	l4d_ready_survivor_freeze = CreateConVar("l4d_ready_survivor_freeze", "1", "Freeze the survivors during ready-up.  When unfrozen they are unable to leave the saferoom but can move freely inside", FCVAR_PLUGIN, true, 0.0, true, 1.0);
 	l4d_ready_max_players = CreateConVar("l4d_ready_max_players", "12", "Maximum number of players to show on the ready-up panel.", FCVAR_PLUGIN, true, 0.0, true, MAXPLAYERS+1.0);
@@ -683,6 +688,9 @@ InitiateReadyUp()
 	SetConVarFlags(god, GetConVarFlags(god) & ~FCVAR_NOTIFY);
 	SetConVarBool(god, true);
 	SetConVarFlags(god, GetConVarFlags(god) | FCVAR_NOTIFY);
+    SetConVarFlags(sv_infinite_primary_ammo, GetConVarFlags(sv_infinite_primary_ammo) & ~FCVAR_NOTIFY);       
+    SetConVarBool(sv_infinite_primary_ammo, true, false, false);                
+    SetConVarFlags(sv_infinite_primary_ammo, GetConVarFlags(sv_infinite_primary_ammo) | FCVAR_NOTIFY);
 	SetConVarBool(sb_stop, true);
 
 	L4D2_CTimerStart(L4D2CT_VersusStartTimer, 99999.9);
@@ -696,6 +704,9 @@ InitiateLive(bool:real = true)
 	SetTeamFrozen(L4D2Team_Survivor, false);
 
 	EnableEntities();
+    SetConVarFlags(sv_infinite_primary_ammo, GetConVarFlags(sv_infinite_primary_ammo) & ~FCVAR_NOTIFY);       
+    SetConVarBool(sv_infinite_primary_ammo, false, false, false);                
+    SetConVarFlags(sv_infinite_primary_ammo, GetConVarFlags(sv_infinite_primary_ammo) | FCVAR_NOTIFY);
 	SetConVarBool(director_no_specials, false);
 	SetConVarFlags(god, GetConVarFlags(god) & ~FCVAR_NOTIFY);
 	SetConVarBool(god, false);
