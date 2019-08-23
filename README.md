@@ -54,6 +54,8 @@ L4D2 competitive health bonus scoring system.
 
 [Checkout the top comments in the source](https://github.com/LuckyServ/sourcemod-plugins/blob/master/source/l4d2_health_temp_bonus.sp) for more information.
 
+![L4D2 Health Temp Bonus Explained](https://i.imgur.com/cQtqtz1.png)
+
 ##### Required files
 
 > - l4d2_health_temp_bonus.smx (main plugin)
