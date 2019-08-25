@@ -127,6 +127,7 @@ public OnPluginStart()
 	RegConsoleCmd("sm_notcasting", NotCasting_Cmd, "Deregister yourself as a caster or allow admins to deregister other players");
 	RegConsoleCmd("sm_ready", Ready_Cmd, "Mark yourself as ready for the round to go live");
 	RegConsoleCmd("sm_toggleready", ToggleReady_Cmd, "Toggle your ready status");
+	RegConsoleCmd("sm_r", ToggleReady_Cmd, "Toggle your ready status");
 	RegConsoleCmd("sm_unready", Unready_Cmd, "Mark yourself as not ready if you have set yourself as ready");
 	RegConsoleCmd("sm_return", Return_Cmd, "Return to a valid saferoom spawn if you get stuck during an unfrozen ready-up period");
     	RegConsoleCmd("sm_cast", Cast_Cmd, "Registers the calling player as a caster so the round will not go live unless they are ready");
