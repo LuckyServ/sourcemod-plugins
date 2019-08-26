@@ -27,7 +27,7 @@ public OnPluginStart()
     HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
     HookEvent("ability_use", Event_AbilityUse, EventHookMode_Post);
 
-    cvarHunterGroundM2Godframes = CreateConVar("hunter_ground_m2_godframes", "0.1", "m2 godframes after a hunter lands on the ground", FCVAR_NONE, true, 0.0, true, 1.0);
+    cvarHunterGroundM2Godframes = CreateConVar("hunter_ground_m2_godframes", "0.2", "m2 godframes after a hunter lands on the ground", FCVAR_NONE, true, 0.0, true, 1.0);
 }
 
 public Action:L4D_OnShovedBySurvivor(shover, shovee, const Float:vector[3])
