@@ -141,24 +141,28 @@ public Event_AbilityUse(Handle:event, const String:name[], bool:dontBroadcast)
 
 public void OnGameFrame() {
     for (new client = 1; client < MAXPLAYERS+1; ++client) {
-        if (bIsPouncing[client] && IsClientAndInGame(client) && IsPlayerAlive(client)) {
+
+        bIsPouncing[client] = bIsPouncing[client] && IsClientAndInGame(client) && IsPlayerAlive(client);
+
+        if (bIsPouncing[client]) {
+
             if (GetGameTime() - bIsPouncingStartTime[client] > 0.04) {
+
                 //PrintToChatAll("Player %N is pouncing: %.2f", client, GetGameTime());
+
                 if (bIsPouncingStopTime[client] == 0.0) {
+
                     if (IsGrounded(client)) {
+
                         // PrintToChatAll("Hunter grounded (buffer = %.0f ms)", HUNTER_GROUND_M2_GODFRAMES * 1000);
                         bIsPouncingStopTime[client] = GetGameTime();    
                     }
+
                 } else if (GetGameTime() - bIsPouncingStopTime[client] > HUNTER_GROUND_M2_GODFRAMES) {
                     // PrintToChatAll("Not pouncing anymore.");
                     bIsPouncing[client] = false;    
                 }
             }
-        } else {
-            if (bIsPouncing[client]) {
-                PrintToChatAll("Not pouncing anymore.");
-            }
-            bIsPouncing[client] = false;
         }
     } 
 }
