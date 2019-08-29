@@ -27,7 +27,7 @@ public OnPluginStart()
     HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
     HookEvent("ability_use", Event_AbilityUse, EventHookMode_Post);
 
-    cvarHunterGroundM2Godframes = CreateConVar("hunter_ground_m2_godframes", "0.2", "m2 godframes after a hunter lands on the ground", FCVAR_NONE, true, 0.0, true, 1.0);
+    cvarHunterGroundM2Godframes = CreateConVar("hunter_ground_m2_godframes", "0.75", "m2 godframes after a hunter lands on the ground", FCVAR_NONE, true, 0.0, true, 1.0);
 }
 
 public Action:L4D_OnShovedBySurvivor(shover, shovee, const Float:vector[3])
@@ -58,11 +58,11 @@ public Action Shove_Handler(shover, shovee) {
 		return Plugin_Continue;
     }
 
-	// If the hunter is crouching and on the ground, block m2s
-	if ((GetEntityFlags(shovee) & FL_DUCKING) && (GetEntityFlags(shovee) & FL_ONGROUND))
-	{
-		return Plugin_Handled;
-	}
+	//// If the hunter is crouching and on the ground, block m2s
+	//if ((GetEntityFlags(shovee) & FL_DUCKING) && (GetEntityFlags(shovee) & FL_ONGROUND))
+	//{
+	//	return Plugin_Handled;
+	//}
 	
 	return Plugin_Continue;
 } 
@@ -148,12 +148,8 @@ public void OnGameFrame() {
 
             if (GetGameTime() - bIsPouncingStartTime[client] > 0.04) {
 
-                //PrintToChatAll("Player %N is pouncing: %.2f", client, GetGameTime());
-
                 if (bIsPouncingStopTime[client] == 0.0) {
-
                     if (IsGrounded(client)) {
-
                         // PrintToChatAll("Hunter grounded (buffer = %.0f ms)", HUNTER_GROUND_M2_GODFRAMES * 1000);
                         bIsPouncingStopTime[client] = GetGameTime();    
                     }
