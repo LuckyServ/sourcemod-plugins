@@ -1,4 +1,4 @@
-#include <sourcemod>
+
 #include <sdktools_sound>
 
 #define MAX_STR_LEN 30
@@ -70,6 +70,7 @@ public void StartMix()
 {
     EmitSoundToAll("buttons/blip1.wav"); 
     Call_StartForward(mixStartedForward);
+    FakeClientCommandAll("sm_hide");
     Call_Finish();
 }
 
@@ -77,7 +78,17 @@ public void StopMix()
 {
     currentState = STATE_NO_MIX;
     Call_StartForward(mixStoppedForward);
+    FakeClientCommandAll("sm_show");
     Call_Finish();
+}
+
+public void FakeClientCommandAll(char[] command)
+{
+    for (new client = 1; client <= MaxClients; ++client) {
+        if (IsClientInGame(client) && !IsFakeClient(client)) {
+            FakeClientCommand(client, command);
+        }  
+    }
 }
 
 public Action Cmd_MixStop(int client, int args) {
