@@ -1,4 +1,4 @@
-
+#include <sourcemod>
 #include <sdktools_sound>
 
 #define MAX_STR_LEN 30
@@ -35,6 +35,7 @@ new survivorsPick = 0;
 new bool:isMixAllowed = false;
 new Handle:mixStartedForward;
 new Handle:mixStoppedForward;
+new Handle:captainVoteTimer;
 
 public Plugin myinfo =
 {
@@ -76,6 +77,9 @@ public void StartMix()
 
 public void StopMix()
 {
+    if (captainVoteTimer != INVALID_HANDLE) {
+        KillTimer(captainVoteTimer);
+    }
     currentState = STATE_NO_MIX;
     Call_StartForward(mixStoppedForward);
     FakeClientCommandAll("sm_show");
@@ -137,7 +141,7 @@ public Action Cmd_MixStart(int client, int args)
             Menu_DisplayToAllSpecs();
         }
 
-        CreateTimer(11.0, Menu_StateHandler, _, TIMER_REPEAT); 
+        captainVoteTimer = CreateTimer(11.0, Menu_StateHandler, _, TIMER_REPEAT); 
 
     } else if (mixConditions == COND_NEED_MORE_VOTES) {
         PrintToChatAll("\x04Mix Manager: \x03%N \x01has voted to start a Mix. (\x05%d \x01more to start)", client, MIN_MIX_START_COUNT - mixCallsCount);
