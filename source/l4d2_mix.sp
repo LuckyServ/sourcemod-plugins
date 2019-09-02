@@ -58,6 +58,7 @@ public void OnPluginStart()
 public void OnMapStart()
 {
     isMixAllowed = true;
+    StopMix();
 }
 
 public void OnRoundIsLive() {
@@ -125,7 +126,7 @@ public Action Cmd_MixStart(int client, int args)
             Menu_DisplayToAllSpecs();
         }
 
-        CreateTimer(8.0, Menu_StateHandler, _, TIMER_REPEAT); 
+        CreateTimer(11.0, Menu_StateHandler, _, TIMER_REPEAT); 
 
     } else if (mixConditions == COND_NEED_MORE_VOTES) {
         PrintToChatAll("\x04Mix Manager: \x03%N \x01has voted to start a Mix. (\x05%d \x01more to start)", client, MIN_MIX_START_COUNT - mixCallsCount);
@@ -215,7 +216,7 @@ public void Menu_DisplayToAllSpecs()
 {
     for (new client = 1; client <= MaxClients; ++client) {
         if (IsClientSpec(client)) {
-            mixMenu.Display(client, 7);
+            mixMenu.Display(client, 10);
         }
     }
 }
@@ -251,11 +252,19 @@ public int Menu_MixHandler(Menu menu, MenuAction action, int param1, int param2)
 
             } else {
                 if (SwapPlayerToTeam(authId, team, 0)) {
-                    CreateTimer(0.5, Menu_StateHandler);
+                    pickCount++;
+                    if (pickCount == 4) {
+                        // Do not switch picks 
+
+                    } else if (pickCount > 5) {
+                        PrintToChatAll("\x04Mix Manager: \x01 Teams are picked.");
+                        StopMix();
+                    } else {
+                        survivorsPick = survivorsPick == 1 ? 0 : 1;
+                    } 
                 } else {
                     PrintToChatAll("\x04Mix Manager: \x01The team member who was picked was not found, aborting...", param1);
                     StopMix();
-                    
                 }
             }
         }
@@ -308,7 +317,8 @@ public Action Menu_StateHandler(Handle timer, Handle hndl)
         }
 
         case STATE_PICK_TEAMS: {
-            Menu_TeamPickHandler();
+            survivorsPick = GetURandomInt() & 1;            
+            CreateTimer(1.0, Menu_TeamPickHandler, _, TIMER_REPEAT);
         }
     }
 
@@ -319,24 +329,9 @@ public Action Menu_StateHandler(Handle timer, Handle hndl)
     }
 }
 
-public void Menu_TeamPickHandler()
+public Action Menu_TeamPickHandler(Handle timer)
 {
     if (currentState == STATE_PICK_TEAMS) {
-        ++pickCount; 
-        
-        if (pickCount == 1) {
-            survivorsPick = GetURandomInt() & 1;            
-
-        } else if (pickCount == 5) {
-            // Do not switch picks
-
-        } else if (pickCount > 6) {
-            PrintToChatAll("\x04Mix Manager: \x01 Teams are picked.");
-            StopMix();
-
-        } else {
-            survivorsPick = survivorsPick == 1 ? 0 : 1;
-        } 
 
         if (Menu_Initialise()) {
             Menu_AddAllSpectators();
@@ -350,17 +345,22 @@ public void Menu_TeamPickHandler()
 
             if (captain > 0) {
                 if (GetSpectatorsCount() > 0) {
-                    mixMenu.Display(captain, MENU_TIME_FOREVER); 
+                    mixMenu.Display(captain, 1); 
                 } else {
                     PrintToChatAll("\x04Mix Manager: \x01No more spectators to choose from, aborting...");
                     StopMix();
+                    return Plugin_Stop;
                 }
             } else {
                 PrintToChatAll("\x04Mix Manager: \x01Failed to find the captain, aborting...");
                 StopMix();
+                return Plugin_Stop;
             }
+
+            return Plugin_Continue;
         }
     }
+    return Plugin_Stop;
 }
 
 public void SwapAllPlayersToSpec()
