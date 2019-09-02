@@ -59,6 +59,7 @@
 #include <left4downtown>
 #include <sdktools>
 #include <l4d2lib>
+#include <colors>
 
 #define DEBUG 0
 
@@ -103,13 +104,14 @@ public Plugin myinfo =
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "2.7",
+	version = "3",
 	url = "https://github.com/LuckyServ/"
 };
 
 public OnPluginStart() 
 {
     RegConsoleCmd("sm_health", Cmd_ShowBonus, "Show current bonus");
+    RegConsoleCmd("sm_mapinfo", Cmd_ShowInfo, "Show map info");
 
     CreateConVar("sm_perm_ratio", "0.8", "Permanent health to temporary health ratio", 
         FCVAR_NONE, true, 0.0, true, 1.0);
@@ -148,6 +150,24 @@ public Action Cmd_ShowBonus(client, args)
     } else {
         PrintRoundBonusClient(client, true, health, finalBonus);
     }
+}
+
+public Action Cmd_ShowInfo(client, args)
+{
+    new health[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};    
+    health[PERM_HEALTH_INDEX] = 100 * SURVIVOR_LIMIT;
+    health[TEMP_HEALTH_INDEX] = 0;
+    health[STOCK_TEMP_HEALTH_INDEX] = STOCK_TEMP_HEALTH;
+    health[PILLS_HEALTH_INDEX] = PAIN_PILLS_HEALTH * SURVIVOR_LIMIT;
+    health[REVIVE_COUNT_INDEX] = 0;
+    health[ALIVE_COUNT_INDEX] = SURVIVOR_LIMIT;
+
+    new finalBonus = CalculateFinalBonus(health);
+
+    CPrintToChat(client, "[Map Info] {default}({green}max distance{default}): {olive}%d{default}", L4D2_GetMapValueInt("max_distance", L4D_GetVersusMaxCompletionScore())); 
+    CPrintToChat(client, "[Map Info] {default}({green}max bonus{default}): {olive}%d {default}[ Perm: {lightgreen}%d {default}| Temp: {lightgreen}%d {default} | Pills: {lightgreen}%d {default}]", 
+        finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
+        health[PILLS_HEALTH_INDEX]); 
 }
 
 /**

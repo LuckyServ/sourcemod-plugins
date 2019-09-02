@@ -41,7 +41,7 @@ public Plugin myinfo =
     name = "L4D2 Mix Manager",
     author = "Luckylock",
     description = "Provides ability to pick captains and teams through menus",
-    version = "1",
+    version = "2",
     url = "https://github.com/LuckyServ/"
 };
 
