@@ -33,6 +33,7 @@ new maxVoteCount = 0;
 new pickCount = 0;
 new survivorsPick = 0;
 new bool:isMixAllowed = false;
+new bool:isPickingCaptain = false;
 new Handle:mixStartedForward;
 new Handle:mixStoppedForward;
 new Handle:captainVoteTimer;
@@ -42,7 +43,7 @@ public Plugin myinfo =
     name = "L4D2 Mix Manager",
     author = "Luckylock",
     description = "Provides ability to pick captains and teams through menus",
-    version = "2",
+    version = "2.1",
     url = "https://github.com/LuckyServ/"
 };
 
@@ -69,21 +70,22 @@ public void OnRoundIsLive() {
 
 public void StartMix()
 {
-    EmitSoundToAll("buttons/blip1.wav"); 
-    Call_StartForward(mixStartedForward);
     FakeClientCommandAll("sm_hide");
+    Call_StartForward(mixStartedForward);
     Call_Finish();
+    EmitSoundToAll("buttons/blip1.wav"); 
 }
 
 public void StopMix()
 {
-    if (captainVoteTimer != INVALID_HANDLE) {
+    currentState = STATE_NO_MIX;
+    FakeClientCommandAll("sm_show");
+    Call_StartForward(mixStoppedForward);
+    Call_Finish();
+
+    if (isPickingCaptain && captainVoteTimer != INVALID_HANDLE) {
         KillTimer(captainVoteTimer);
     }
-    currentState = STATE_NO_MIX;
-    Call_StartForward(mixStoppedForward);
-    FakeClientCommandAll("sm_show");
-    Call_Finish();
 }
 
 public void FakeClientCommandAll(char[] command)
@@ -142,6 +144,7 @@ public Action Cmd_MixStart(int client, int args)
         }
 
         captainVoteTimer = CreateTimer(11.0, Menu_StateHandler, _, TIMER_REPEAT); 
+        isPickingCaptain = true;
 
     } else if (mixConditions == COND_NEED_MORE_VOTES) {
         PrintToChatAll("\x04Mix Manager: \x03%N \x01has voted to start a Mix. (\x05%d \x01more to start)", client, MIN_MIX_START_COUNT - mixCallsCount);
@@ -332,6 +335,7 @@ public Action Menu_StateHandler(Handle timer, Handle hndl)
         }
 
         case STATE_PICK_TEAMS: {
+            isPickingCaptain = false;
             survivorsPick = GetURandomInt() & 1;            
             CreateTimer(1.0, Menu_TeamPickHandler, _, TIMER_REPEAT);
         }
