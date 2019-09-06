@@ -25,6 +25,7 @@ enum L4D2Team
 new currentState = STATE_NO_MIX;
 new Menu:mixMenu;
 new StringMap:hVoteResultsTrie;
+new StringMap:hSwapWhitelist;
 new mixCallsCount = 0;
 char currentMaxVotedCaptAuthId[MAX_STR_LEN];
 char survCaptainAuthId[MAX_STR_LEN];
@@ -43,7 +44,7 @@ public Plugin myinfo =
     name = "L4D2 Mix Manager",
     author = "Luckylock",
     description = "Provides ability to pick captains and teams through menus",
-    version = "2.1",
+    version = "3",
     url = "https://github.com/LuckyServ/"
 };
 
@@ -51,7 +52,10 @@ public void OnPluginStart()
 {
     RegConsoleCmd("sm_mix", Cmd_MixStart, "Mix command");
     RegAdminCmd("sm_stopmix", Cmd_MixStop, ADMFLAG_CHANGEMAP, "Mix command");
+    //HookEvent("player_team", Cmd_OnPlayerJoinTeam, EventHookMode_Pre);
+    AddCommandListener(Cmd_OnPlayerJoinTeam, "jointeam");
     hVoteResultsTrie = CreateTrie();
+    hSwapWhitelist = CreateTrie();
     mixStartedForward = CreateGlobalForward("OnMixStarted", ET_Event);
     mixStoppedForward = CreateGlobalForward("OnMixStopped", ET_Event);
     PrecacheSound("buttons/blip1.wav");
@@ -97,6 +101,44 @@ public void FakeClientCommandAll(char[] command)
     }
 }
 
+public Action Cmd_OnPlayerJoinTeam(int client, const char[] command, int argc)
+{
+    char authId[MAX_STR_LEN];
+    char cmdArgBuffer[MAX_STR_LEN];
+    L4D2Team allowedTeam;
+    L4D2Team newTeam;
+
+    if (argc >= 1) {
+
+        GetCmdArg(1, cmdArgBuffer, MAX_STR_LEN);
+        newTeam = L4D2Team:StringToInt(cmdArgBuffer);
+
+        if (currentState != STATE_NO_MIX && newTeam != L4D2Team_Spectator && IsHuman(client)) {
+
+            GetClientAuthId(client, AuthId_SteamID64, authId, MAX_STR_LEN); 
+
+            if (!hSwapWhitelist.GetValue(authId, allowedTeam) || allowedTeam != newTeam) {
+                PrintToChat(client, "\x04Mix Manager: \x01 You can not join a team without being picked.");
+                return Plugin_Stop;
+            }
+        }
+        
+    }
+
+    return Plugin_Continue; 
+}
+
+public void OnClientPutInServer(int client)
+{
+    char authId[MAX_STR_LEN];
+
+    if (currentState != STATE_NO_MIX && IsHuman(client))
+    {
+        GetClientAuthId(client, AuthId_SteamID64, authId, MAX_STR_LEN);
+        ChangeClientTeamEx(client, L4D2Team_Spectator);
+    }
+}
+
 public Action Cmd_MixStop(int client, int args) {
     if (currentState != STATE_NO_MIX) {
         StopMix();
@@ -133,7 +175,8 @@ public Action Cmd_MixStart(int client, int args)
 
         // Initialise values
         mixCallsCount = 0;
-        ClearTrie(hVoteResultsTrie);
+        hVoteResultsTrie.Clear();
+        hSwapWhitelist.Clear();
         maxVoteCount = 0;
         strcopy(currentMaxVotedCaptAuthId, MAX_STR_LEN, " ");
         pickCount = 0;
@@ -269,6 +312,7 @@ public int Menu_MixHandler(Menu menu, MenuAction action, int param1, int param2)
                 StopMix();
 
             } else {
+               
                 if (SwapPlayerToTeam(authId, team, 0)) {
                     pickCount++;
                     if (pickCount == 4) {
@@ -298,7 +342,7 @@ public Action Menu_StateHandler(Handle timer, Handle hndl)
             new numVotes = 0;
             GetTrieValue(hVoteResultsTrie, currentMaxVotedCaptAuthId, numVotes);
             ClearTrie(hVoteResultsTrie);
-
+           
             if (SwapPlayerToTeam(currentMaxVotedCaptAuthId, L4D2Team_Survivor, numVotes)) {
                 strcopy(survCaptainAuthId, MAX_STR_LEN, currentMaxVotedCaptAuthId);
                 currentState = STATE_SECOND_CAPT;
@@ -397,6 +441,7 @@ public bool SwapPlayerToTeam(const char[] authId, L4D2Team:team, numVotes)
     new bool:foundClient = client > 0;
 
     if (foundClient) {
+        hSwapWhitelist.SetValue(authId, team);
         ChangeClientTeamEx(client, team);
 
         switch(currentState) {
@@ -511,4 +556,9 @@ stock FindSurvivorBot()
         }
     }
     return -1;
+}
+
+public bool IsHuman(client)
+{
+    return IsClientInGame(client) && !IsFakeClient(client);
 }
