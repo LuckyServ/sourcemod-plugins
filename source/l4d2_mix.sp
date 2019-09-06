@@ -52,7 +52,6 @@ public void OnPluginStart()
 {
     RegConsoleCmd("sm_mix", Cmd_MixStart, "Mix command");
     RegAdminCmd("sm_stopmix", Cmd_MixStop, ADMFLAG_CHANGEMAP, "Mix command");
-    //HookEvent("player_team", Cmd_OnPlayerJoinTeam, EventHookMode_Pre);
     AddCommandListener(Cmd_OnPlayerJoinTeam, "jointeam");
     hVoteResultsTrie = CreateTrie();
     hSwapWhitelist = CreateTrie();
