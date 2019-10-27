@@ -104,7 +104,7 @@ public Plugin myinfo =
 	name = "L4D2 Competitive Health Bonus System",
 	author = "Luckylock",
 	description = "Scoring system for l4d2 competitive",
-	version = "3",
+	version = "3.1",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -141,39 +141,45 @@ public OnConfigsExecuted()
 public Action Cmd_ShowBonus(client, args) 
 {
     new health[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};
-    CalculateHealth(health);
-    new finalBonus = CalculateFinalBonus(health);
+    FillHealthTable(health);
+    new totalBonus = CalculateTotalBonus(health);
     
     if (InSecondHalfOfRound()) {
         PrintRoundBonusClient(client, true, firstRoundHealth, firstRoundBonus);    
-        PrintRoundBonusClient(client, false, health, finalBonus);    
+        PrintRoundBonusClient(client, false, health, totalBonus);    
     } else {
-        PrintRoundBonusClient(client, true, health, finalBonus);
+        PrintRoundBonusClient(client, true, health, totalBonus);
     }
 }
 
 public Action Cmd_ShowInfo(client, args)
 {
-    new health[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};    
+    new maxHealth[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};    
+    FillMaxHealthTable(maxHealth);
+    new maxBonus = CalculateTotalBonus(maxHealth);
+
+    CPrintToChat(client, "[Map Info] {default}({green}max distance{default}): {olive}%d{default}", L4D2_GetMapValueInt("max_distance", L4D_GetVersusMaxCompletionScore())); 
+    CPrintToChat(client, "[Map Info] {default}({green}max bonus{default}): {olive}%d {default}[ Perm: {lightgreen}%d {default}| Temp: {lightgreen}%d {default} | Pills: {lightgreen}%d {default}]", 
+        maxBonus, maxHealth[PERM_HEALTH_INDEX], maxHealth[TEMP_HEALTH_INDEX] + maxHealth[STOCK_TEMP_HEALTH_INDEX], 
+        maxHealth[PILLS_HEALTH_INDEX]); 
+}
+
+/**
+ * Fills max health values
+ */
+public void FillMaxHealthTable(int health[HEALTH_TABLE_SIZE]) {
     health[PERM_HEALTH_INDEX] = 100 * SURVIVOR_LIMIT;
     health[TEMP_HEALTH_INDEX] = 0;
     health[STOCK_TEMP_HEALTH_INDEX] = STOCK_TEMP_HEALTH;
     health[PILLS_HEALTH_INDEX] = PAIN_PILLS_HEALTH * SURVIVOR_LIMIT;
     health[REVIVE_COUNT_INDEX] = 0;
     health[ALIVE_COUNT_INDEX] = SURVIVOR_LIMIT;
-
-    new finalBonus = CalculateFinalBonus(health);
-
-    CPrintToChat(client, "[Map Info] {default}({green}max distance{default}): {olive}%d{default}", L4D2_GetMapValueInt("max_distance", L4D_GetVersusMaxCompletionScore())); 
-    CPrintToChat(client, "[Map Info] {default}({green}max bonus{default}): {olive}%d {default}[ Perm: {lightgreen}%d {default}| Temp: {lightgreen}%d {default} | Pills: {lightgreen}%d {default}]", 
-        finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
-        health[PILLS_HEALTH_INDEX]); 
 }
 
 /**
- * Calculates health values (permanent and temporary)
+ * Calculates and fills health values (permanent and temporary)
  */
-public void CalculateHealth(int health[HEALTH_TABLE_SIZE]) 
+public void FillHealthTable(int health[HEALTH_TABLE_SIZE]) 
 {
     new revives = 0;
 
@@ -204,9 +210,9 @@ public void CalculateHealth(int health[HEALTH_TABLE_SIZE])
 }
 
 /**
- * Calculates the final bonus.
+ * Calculates the total bonus; health table is changed after this call.
  */
-public int CalculateFinalBonus(health[HEALTH_TABLE_SIZE]) 
+public int CalculateTotalBonus(health[HEALTH_TABLE_SIZE]) 
 {
     ApplyBonusFactors(health, PERM_RATIO, PERM_HEALTH_INDEX);
 
@@ -263,8 +269,8 @@ public void OnMapStart() {
 public Action L4D2_OnEndVersusModeRound(bool:countSurvivors) 
 {
     currentRoundHealth = {0, 0, 0, 0, 0, 0};
-    CalculateHealth(currentRoundHealth);
-    currentRoundBonus = CalculateFinalBonus(currentRoundHealth);
+    FillHealthTable(currentRoundHealth);
+    currentRoundBonus = CalculateTotalBonus(currentRoundHealth);
     new survivalBonus = currentRoundHealth[ALIVE_COUNT_INDEX] > 0 ? 
         RoundFloat(float(currentRoundBonus) / currentRoundHealth[ALIVE_COUNT_INDEX]) : 0;
 
@@ -288,25 +294,33 @@ public Action PrintEndBonus(Handle timer, Handle hndl)
     }
 }
 
-public void PrintRoundBonusAll(bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
+public void PrintRoundBonusAll(bool firstRound, int health[HEALTH_TABLE_SIZE], int totalBonus)
 {
-    if (finalBonus > 0) {
-        PrintToChatAll("\x01R\x04#%d \x01Bonus: \x05%d \x01[ Perm: \x03%d \x01| Temp: \x03%d \x01 | Pills: \x03%d \x01]", 
-            firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
+    new maxHealth[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};    
+    FillMaxHealthTable(maxHealth);
+    new maxBonus = CalculateTotalBonus(maxHealth);
+
+    if (totalBonus > 0) {
+        PrintToChatAll("\x01R\x04#%d \x01Bonus: \x05%d \x01<\x03%.1f%%\x01> \x01[ Perm: \x03%d \x01| Temp: \x03%d \x01 | Pills: \x03%d \x01]", 
+            firstRound ? 1 : 2, totalBonus, float(totalBonus) / maxBonus * 100, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
             health[PILLS_HEALTH_INDEX]); 
     } else {
-        PrintToChatAll("\x01R\x04#%d \x01Bonus: \x05%d", firstRound ? 1 : 2, finalBonus)
+        PrintToChatAll("\x01R\x04#%d \x01Bonus: \x05%d", firstRound ? 1 : 2, totalBonus)
     }
 }
 
-public void PrintRoundBonusClient(int client, bool firstRound, int health[HEALTH_TABLE_SIZE], int finalBonus)
+public void PrintRoundBonusClient(int client, bool firstRound, int health[HEALTH_TABLE_SIZE], int totalBonus)
 {
-    if (finalBonus > 0) {
-        PrintToChat(client, "\x01R\x04#%d \x01Bonus: \x05%d \x01[ Perm: \x03%d \x01| Temp: \x03%d \x01 | Pills: \x03%d \x01]", 
-            firstRound ? 1 : 2, finalBonus, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
+    new maxHealth[HEALTH_TABLE_SIZE] = {0, 0, 0, 0, 0, 0};    
+    FillMaxHealthTable(maxHealth);
+    new maxBonus = CalculateTotalBonus(maxHealth);
+
+    if (totalBonus > 0) {
+        PrintToChat(client, "\x01R\x04#%d \x01Bonus: \x05%d \x01<\x03%.1f%%\x01> \x01[ Perm: \x03%d \x01| Temp: \x03%d \x01 | Pills: \x03%d \x01]", 
+            firstRound ? 1 : 2, totalBonus, float(totalBonus) / maxBonus * 100, health[PERM_HEALTH_INDEX], health[TEMP_HEALTH_INDEX] + health[STOCK_TEMP_HEALTH_INDEX], 
             health[PILLS_HEALTH_INDEX]); 
     } else {
-        PrintToChat(client, "\x01R\x04#%d \x01Bonus: \x05%d", firstRound ? 1 : 2, finalBonus); 
+        PrintToChat(client, "\x01R\x04#%d \x01Bonus: \x05%d", firstRound ? 1 : 2, totalBonus); 
     }
 }
 
