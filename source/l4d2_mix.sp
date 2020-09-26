@@ -8,6 +8,7 @@
 #define COND_NEED_MORE_VOTES 1
 #define COND_START_MIX 2
 #define COND_START_MIX_ADMIN 3
+#define COND_NO_PLAYERS 4
 
 #define STATE_FIRST_CAPT 0
 #define STATE_SECOND_CAPT 1
@@ -26,6 +27,7 @@ new currentState = STATE_NO_MIX;
 new Menu:mixMenu;
 new StringMap:hVoteResultsTrie;
 new StringMap:hSwapWhitelist;
+new StringMap:hPlayers;
 new mixCallsCount = 0;
 char currentMaxVotedCaptAuthId[MAX_STR_LEN];
 char survCaptainAuthId[MAX_STR_LEN];
@@ -39,12 +41,13 @@ new Handle:mixStartedForward;
 new Handle:mixStoppedForward;
 new Handle:captainVoteTimer;
 
+
 public Plugin myinfo =
 {
     name = "L4D2 Mix Manager",
     author = "Luckylock",
     description = "Provides ability to pick captains and teams through menus",
-    version = "3",
+    version = "4",
     url = "https://github.com/LuckyServ/"
 };
 
@@ -55,6 +58,7 @@ public void OnPluginStart()
     AddCommandListener(Cmd_OnPlayerJoinTeam, "jointeam");
     hVoteResultsTrie = CreateTrie();
     hSwapWhitelist = CreateTrie();
+    hPlayers = CreateTrie();
     mixStartedForward = CreateGlobalForward("OnMixStarted", ET_Event);
     mixStoppedForward = CreateGlobalForward("OnMixStopped", ET_Event);
     PrecacheSound("buttons/blip1.wav");
@@ -194,6 +198,8 @@ public Action Cmd_MixStart(int client, int args)
     } else if (mixConditions == COND_HAS_ALREADY_VOTED) {
         PrintToChat(client, "\x04Mix Manager: \x01You already voted to start a Mix.");
 
+    } else if (mixConditions == COND_NO_PLAYERS) {
+        PrintToChat(client, "\x04Mix Manager: \x01Join teams to start a mix.");
     }
 
     return Plugin_Handled;
@@ -206,6 +212,10 @@ public int GetMixConditionsAfterVote(int client)
     char clientAuthId[MAX_STR_LEN];
     GetClientAuthId(client, AuthId_SteamID64, clientAuthId, MAX_STR_LEN);
     hasVoted = GetTrieValue(hVoteResultsTrie, clientAuthId, dummy)
+
+    if (!SavePlayers()) {
+        return COND_NO_PLAYERS;
+    }
 
     if (GetAdminFlag(GetUserAdmin(client), Admin_Changemap)) {
         return COND_START_MIX_ADMIN;
@@ -221,6 +231,26 @@ public int GetMixConditionsAfterVote(int client)
         return COND_NEED_MORE_VOTES;
 
     }
+}
+
+public bool SavePlayers() {
+    char clientAuthId[MAX_STR_LEN];
+
+    ClearTrie(hPlayers);
+
+    for (new client = 1; client <= MaxClients; client++) {
+        if (IsSurvivor(client)) {
+            GetClientAuthId(client, AuthId_SteamID64, clientAuthId, MAX_STR_LEN);
+        } else if (IsInfected(client)) {
+            GetClientAuthId(client, AuthId_SteamID64, clientAuthId, MAX_STR_LEN);
+        }
+
+        if (IsSurvivor(client) || IsInfected(client)) {
+            SetTrieValue(hPlayers, clientAuthId, true);
+        }
+    }
+
+    return GetTrieSize(hPlayers) == 8;
 }
 
 public bool Menu_Initialise()
@@ -259,12 +289,19 @@ public void Menu_AddAllSpectators()
     mixMenu.RemoveAllItems();
 
     for (new client = 1; client <= MaxClients; ++client) {
-        if (IsClientSpec(client)) {
+        if (IsClientSpec(client) && IsClientInPlayers(client)) {
             GetClientAuthId(client, AuthId_SteamID64, clientId, MAX_STR_LEN);
             GetClientName(client, clientName, MAX_STR_LEN);
             mixMenu.AddItem(clientId, clientName);
         }  
     }
+}
+
+public bool IsClientInPlayers(client) {
+    bool dummy;
+    char clientAuthId[MAX_STR_LEN];
+    GetClientAuthId(client, AuthId_SteamID64, clientAuthId, MAX_STR_LEN);
+    return GetTrieValue(hPlayers, clientAuthId, dummy);
 }
 
 public void Menu_AddTestSubjects()
@@ -275,7 +312,7 @@ public void Menu_AddTestSubjects()
 public void Menu_DisplayToAllSpecs()
 {
     for (new client = 1; client <= MaxClients; ++client) {
-        if (IsClientSpec(client)) {
+        if (IsClientSpec(client) && IsClientInPlayers(client)) {
             mixMenu.Display(client, 10);
         }
     }
@@ -467,9 +504,9 @@ public bool SwapPlayerToTeam(const char[] authId, L4D2Team:team, numVotes)
 
 public void OnClientDisconnect(client)
 {
-    if (currentState != STATE_NO_MIX && IsPlayerCaptain(client))
+    if (currentState != STATE_NO_MIX && IsClientInPlayers(client))
     {
-        PrintToChatAll("\x04Mix Manager: \x01Captain \x03%N \x01has left the game, aborting...", client);
+        PrintToChatAll("\x04Mix Manager: \x01Player \x03%N \x01has left the game, aborting...", client);
         StopMix();
     }
 }
@@ -555,6 +592,18 @@ stock FindSurvivorBot()
         }
     }
     return -1;
+}
+
+stock bool:IsSurvivor(client)                                                   
+{                                                                               
+    return IsHuman(client)
+        && GetClientTeam(client) == 2; 
+}
+
+stock bool:IsInfected(client)                                                   
+{                                                                               
+    return IsHuman(client)
+        && GetClientTeam(client) == 3; 
 }
 
 public bool IsHuman(client)
