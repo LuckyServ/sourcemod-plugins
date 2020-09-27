@@ -1,5 +1,7 @@
 #include <sourcemod>
 
+#define MAX_STR_LEN 128
+
 new bool:isFirstMapStart = true;
 new bool:isSwitchingMaps = true;
 new bool:startedTimer = false;
@@ -10,7 +12,7 @@ public Plugin myinfo =
 	name = "L4D2 Server Restarter",
 	author = "Luckylock",
 	description = "Restarts server automatically. Uses the built-in restart of srcds_run",
-	version = "2.0",
+	version = "3",
 	url = "https://github.com/LuckyServ/"
 };
 
@@ -29,9 +31,17 @@ public void OnPluginEnd()
 
 public Action KickClientsAndRestartServer(int client, int args)
 {
+    char kickMessage[MAX_STR_LEN];
+
+    if (GetCmdArgs() >= 1) {
+        GetCmdArgString(kickMessage, MAX_STR_LEN);
+    } else {
+        strcopy(kickMessage, MAX_STR_LEN, "Server is restarting")
+    }
+
     for (new i = 1; i <= MaxClients; ++i) {
         if (IsHuman(i)) {
-            KickClient(i, "go next"); 
+            KickClient(i, kickMessage); 
         }
     }
 
